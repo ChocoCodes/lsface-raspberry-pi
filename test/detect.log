@@ -1,0 +1,41 @@
+2026-08-10 00:21:56,847 - Initialization successful.
+2026-08-10 00:21:56,847 - Camera now open.
+2026-08-10 00:21:56,849 - Camera configuration has been adjusted!
+2026-08-10 00:21:56,850 - Configuration successful!
+2026-08-10 00:21:56,865 - Camera started
+2026-08-10 00:22:29,290 - Result: {'status': 'accepted', 'engine': 'sface', 'name': 'John_Roland_Octavio', 'l2': 0.8637271734883667, 'lbph_distance': 127.93438534407817, 'gate_reason': 'quality:blurry(55.5)'} | Latency: 151.5ms | FPS: 6.5
+2026-08-10 00:22:33,558 - Result: {'status': 'accepted', 'engine': 'sface', 'name': 'John_Roland_Octavio', 'l2': 0.8862662699122718, 'lbph_distance': 130.056243934103, 'gate_reason': 'quality:blurry(101.7)'} | Latency: 160.2ms | FPS: 6.2
+2026-08-10 00:22:35,010 - Result: {'status': 'accepted', 'engine': 'sface', 'name': 'John_Roland_Octavio', 'l2': 0.8507895456020226, 'lbph_distance': 130.74371382778634, 'gate_reason': 'quality:blurry(78.3)'} | Latency: 154.5ms | FPS: 6.4
+2026-08-10 00:22:36,694 - Result: {'status': 'accepted', 'engine': 'sface', 'name': 'John_Roland_Octavio', 'l2': 0.8605972291599433, 'lbph_distance': 127.0549086258992, 'gate_reason': 'quality:blurry(90.2)'} | Latency: 159.6ms | FPS: 6.2
+2026-08-10 00:22:39,625 - Result: {'status': 'accepted', 'engine': 'sface', 'name': 'John_Roland_Octavio', 'l2': 0.8224541501888994, 'lbph_distance': 128.96951518585342, 'gate_reason': 'quality:blurry(98.7)'} | Latency: 149.2ms | FPS: 6.7
+2026-08-10 00:23:09,939 - Result: {'status': 'accepted', 'engine': 'sface', 'name': 'John_Roland_Octavio', 'l2': 0.8497228310639622, 'lbph_distance': 128.96843904844013, 'gate_reason': 'quality:blurry(108.9)'} | Latency: 158.2ms | FPS: 6.3
+2026-08-10 00:23:14,410 - Camera stopped
+2026-08-10 00:23:14,812 - Camera closed successfully.
+2026-08-10 01:01:35,145 - Initialization successful.
+2026-08-10 01:01:35,146 - Camera now open.
+2026-08-10 01:01:35,148 - Camera configuration has been adjusted!
+2026-08-10 01:01:35,148 - Configuration successful!
+2026-08-10 01:01:35,259 - Camera started
+2026-08-10 01:01:40,084 - Result: {'status': 'accepted', 'engine': 'sface', 'name': 'John_Roland_Octavio', 'l2': 0.9137970124275785, 'lbph_distance': 137.02249112853679, 'gate_reason': 'quality:blurry(29.4)'} | Latency: 151.2ms | FPS: 6.6
+2026-08-10 01:01:41,701 - Result: {'status': 'accepted', 'engine': 'sface', 'name': 'John_Roland_Octavio', 'l2': 0.8409398280487612, 'lbph_distance': 126.02800809294814, 'gate_reason': 'quality:blurry(63.8)'} | Latency: 166.9ms | FPS: 6.0
+2026-08-10 01:01:43,332 - Result: {'status': 'accepted', 'engine': 'sface', 'name': 'John_Roland_Octavio', 'l2': 0.829338917182796, 'lbph_distance': 126.65623681297987, 'gate_reason': 'quality:blurry(60.9)'} | Latency: 151.9ms | FPS: 6.5
+2026-08-10 01:01:44,953 - Result: {'status': 'accepted', 'engine': 'sface', 'name': 'John_Roland_Octavio', 'l2': 0.8558758747408033, 'lbph_distance': 122.73930210654898, 'gate_reason': 'quality:blurry(42.3)'} | Latency: 162.7ms | FPS: 6.1
+2026-08-10 01:01:46,565 - Result: {'status': 'accepted', 'engine': 'sface', 'name': 'John_Roland_Octavio', 'l2': 0.8469930866877001, 'lbph_distance': 129.15011665822337, 'gate_reason': 'quality:blurry(36.2)'} | Latency: 144.3ms | FPS: 6.8
+2026-08-10 01:01:48,187 - Result: {'status': 'accepted', 'engine': 'sface', 'name': 'John_Roland_Octavio', 'l2': 0.7738395565894859, 'lbph_distance': 128.72754236431342, 'gate_reason': 'quality:blurry(51.5)'} | Latency: 158.2ms | FPS: 6.3
+2026-08-10 01:01:48,986 - Camera stopped
+2026-08-10 01:01:49,389 - Camera closed successfully.
+2026-08-10 01:01:52,773 - Initialization successful.
+2026-08-10 01:01:52,773 - Camera now open.
+2026-08-10 01:01:52,775 - Camera configuration has been adjusted!
+2026-08-10 01:01:52,776 - Configuration successful!
+2026-08-10 01:01:52,786 - Camera started
+2026-08-10 01:01:54,429 - Result: {'status': 'accepted', 'engine': 'sface', 'name': 'John_Roland_Octavio', 'l2': 0.9307965572844832, 'lbph_distance': 139.55562821154956, 'gate_reason': 'quality:blurry(22.3)'} | Latency: 141.7ms | FPS: 7.0
+2026-08-10 01:01:56,199 - Result: {'status': 'accepted', 'engine': 'sface', 'name': 'John_Roland_Octavio', 'l2': 0.8681377641058049, 'lbph_distance': 130.15628180382106, 'gate_reason': 'quality:blurry(50.8)'} | Latency: 162.9ms | FPS: 6.1
+2026-08-10 01:01:57,758 - Result: {'status': 'accepted', 'engine': 'sface', 'name': 'John_Roland_Octavio', 'l2': 0.8273094031387469, 'lbph_distance': 128.38410198368732, 'gate_reason': 'quality:blurry(46.7)'} | Latency: 144.0ms | FPS: 6.8
+2026-08-10 01:01:59,401 - Result: {'status': 'accepted', 'engine': 'sface', 'name': 'John_Roland_Octavio', 'l2': 0.8441620481661918, 'lbph_distance': 127.9512474257906, 'gate_reason': 'quality:blurry(31.5)'} | Latency: 156.9ms | FPS: 6.3
+2026-08-10 01:02:01,041 - Result: {'status': 'accepted', 'engine': 'sface', 'name': 'John_Roland_Octavio', 'l2': 0.8316025936358047, 'lbph_distance': 126.56538837324312, 'gate_reason': 'quality:blurry(51.1)'} | Latency: 153.0ms | FPS: 6.4
+2026-08-10 01:02:02,709 - Result: {'status': 'accepted', 'engine': 'sface', 'name': 'John_Roland_Octavio', 'l2': 0.8141228009924083, 'lbph_distance': 128.78453036351894, 'gate_reason': 'quality:blurry(81.2)'} | Latency: 168.0ms | FPS: 5.9
+2026-08-10 01:02:04,375 - Result: {'status': 'accepted', 'engine': 'sface', 'name': 'John_Roland_Octavio', 'l2': 0.856047064451621, 'lbph_distance': 129.99977516412213, 'gate_reason': 'quality:blurry(43.0)'} | Latency: 151.1ms | FPS: 6.5
+2026-08-10 01:02:06,024 - Result: {'status': 'accepted', 'engine': 'sface', 'name': 'John_Roland_Octavio', 'l2': 0.8050053140971681, 'lbph_distance': 127.78196902904853, 'gate_reason': 'quality:blurry(55.0)'} | Latency: 158.4ms | FPS: 6.3
+2026-08-10 01:07:27,981 - Camera stopped
+2026-08-10 01:07:28,383 - Camera closed successfully.
