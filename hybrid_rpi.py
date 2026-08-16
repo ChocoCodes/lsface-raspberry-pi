@@ -122,7 +122,7 @@ class HybridCascade:
             str(_find_model(self.models_dir, "face_detection_yunet_2023mar.onnx")),
             "",
             (320, 320),
-            0.9,
+            0.6,
             0.3,
             5000,
         )
