@@ -28,11 +28,17 @@ from camera import PiCamera
 def draw_overlay(frame: np.ndarray, result: dict, fps: float, latency: float) -> None:
     """Renders detection status, engine details, latency, and FPS on the frame."""
     status = result.get("status", "unknown")
+    
+    bbox = result.get("bbox")
+    if not bbox:
+        return 
 
+    x, y, w, h = bbox
     # Determine Text and Color based on Hybrid Cascade status
     if status == "accepted":
         name = result.get("name", "Unknown")
         engine = result.get("engine", "")
+
         if engine == "lbph":
             dist = result.get("distance", 0.0)
             text = f"GRANTED: {name} (LBPH: {dist:.1f})"
@@ -59,12 +65,21 @@ def draw_overlay(frame: np.ndarray, result: dict, fps: float, latency: float) ->
         text = f"Status: {status}"
         color = (128, 128, 128)
 
-    # Draw Status Banner at bottom or top
-    cv.putText(frame, text, (10, 65), cv.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+    name_text, fps_text, latency_text = text, f"FPS: {fps:.1f}", f"Latency: {latency:.1f} ms"
+    text_x, text_y = x, max(y - 55, 20)
+    font = cv.FONT_HERSHEY_SIMPLEX
 
-    # Draw FPS and Latency on top-left
-    metrics_text = f"FPS: {fps:.1f} | Latency: {latency:.1f}ms"
-    cv.putText(frame, metrics_text, (10, 30), cv.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+    cv.putText(frame, name_text, (text_x, text_y), font, 0.6, color, 2)
+    cv.putText(frame, fps_text, (10, frame.shape[0] - 15), font, 0.5, (255, 255, 255), 1)
+
+    (text_width, _), _ = cv.getTextSize(
+        latency_text,
+        cv.FONT_HERSHEY_SIMPLEX,
+        0.7,
+        2
+    )
+
+    cv.putText(frame, latency_text, (frame.shape[1] - text_width - 10, frame.shape[0] - 15), font, 0.7, (255, 255, 255), 1)
 
 def run_live():
     print(f"[1/3] Initializing paths and loggers -> {LOG_FILE.name}")
@@ -87,23 +102,38 @@ def run_live():
                 # Capture frame from PiCamera
                 frame_bgr = camera.capture_bgr()
 
-                # Run Hybrid Cascade Inference
+                # Run Hybrid Cascade Inference (Multi-Face)
                 infer_start = time.time()
-                result = cascade.infer(frame_bgr)
+                results = cascade.infer(frame_bgr)
                 latency = (time.time() - infer_start) * 1000.0  # ms
 
+                if results is None: 
+                    results = []
+                
                 # Compute overall frame processing FPS
                 elapsed = time.time() - start_time
                 fps = 1.0 / elapsed if elapsed > 0.0 else 0.0
 
-                status = result.get("status", "unknown")
+                for result in results:
+                    bbox = result.get("bbox")
+                    if bbox:
+                        x, y, w, h = bbox 
+                        status = results.get("status", "unknown")
+
+                        if status == 'accepted':
+                            color = (0, 255, 0) if result.get("engine") == 'lbph' else (255, 255, 0)
+                        else:
+                            color = (0, 0, 255)
+                    cv.rectangle(frame_bgr, (x, y), (x + w, y + h), color, 2)
+
+                draw_overlay(frame_bgr, result, fps, latency)
 
                 # Log non-empty matches every 10 frames to keep log file size manageable
                 if status != "no_face" and frame_count % 10 == 0:
-                    logging.info(f"Result: {result} | Latency: {latency:.1f}ms | FPS: {fps:.1f}")
+                    logging.info(f"Result: {results} | Latency: {latency:.1f}ms | FPS: {fps:.1f}")
 
                 # Draw UI overlays on frame
-                draw_overlay(frame_bgr, result, fps, latency)
+                draw_overlay(frame_bgr, results, fps, latency)
 
                 # Print console diagnostics
                 if status != "no_face":
