@@ -1,0 +1,37 @@
+{
+  "status": "candidate_only",
+  "_note": "Candidate r3 configuration. Validate on Raspberry Pi before promotion.",
+  "lbph_descriptor": {
+    "id": "r3_n8_g6x6",
+    "radius": 3,
+    "neighbors": 8,
+    "grid_x": 6,
+    "grid_y": 6,
+    "profile": "selected_candidate"
+  },
+  "gate": {
+    "tau_accept": 52.372394898355424,
+    "tau_reject": 140.13,
+    "margin_min": 0.05
+  },
+  "quality": {
+    "tau_blur": 587.83,
+    "luma_lo": 52.88,
+    "luma_hi": 137.71,
+    "tau_noise": 8.206,
+    "tau_pose": 63.74,
+    "px_min": 61
+  },
+  "sface": {
+    "cosine_genuine": 0.363,
+    "l2_genuine": 1.0313
+  },
+  "provenance": {
+    "lbph_descriptor": "Selected compact candidate from the major LBPH hyperparameter evaluation.",
+    "enrollment_cohort": "Same upstream cohort as db/lasalledb_lbph.yml: 36 identities, 10 rows per identity, numpy.default_rng(42).choice(..., replace=False), identity IDs ascending.",
+    "gate.tau_accept": "Imported candidate from the parent workspace's calibration-disjoint BGR-first 41-transformation evaluation; validate against this repository's deployment data before promotion.",
+    "gate.tau_reject": "Inherited permissive policy value 140.13; not recalibrated for r3 or Raspberry Pi.",
+    "quality.*": "Existing measured quality thresholds; verify with Pi camera capture conditions.",
+    "sface.*": "Existing deployed SFace thresholds; verify model, alignment, and numeric equivalence on Pi."
+  }
+}

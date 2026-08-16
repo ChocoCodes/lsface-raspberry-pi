@@ -14,3 +14,33 @@ This folder contains the scripts and fully-trained models for the LBPH + SFace h
 - `cascade.py` - Contains the `PiCamera` wrapper class, similar to what was previously used in `sface.py`.
 
 *Note: In previous porting folders, file extensions were occasionally scrambled (e.g. ONNX models named as `.py` or `.npy`). This folder uses correct extensions to prevent confusion during hardware integration.*
+
+## r3 candidate integration
+
+The original `hybrid.py` remains the upstream old/r1 implementation and keeps
+its `HybridCascade(base_dir=".") -> list[dict]` contract. The candidate files
+add the r3 quality-first path without replacing that rollback:
+
+- `hybrid_rpi.py` — r3 cascade with the `r3_n8_g6x6` descriptor.
+- `ex-pc-detect.py` — PC webcam test; enter `1` for the original setup or `2`
+  for r3. Both paths draw boxes/overlays and use separate local logs.
+- `rebuild_release.py` — regenerates the r1/r3 LBPH model and SFace gallery
+  from `db/lasalledb.npy`; generated enrollment files are local-only.
+- `config/thresholds.r3.json` — candidate r3 thresholds and descriptor.
+- `lbph_config.py`, `quality.py` — shared r3 descriptor/quality helpers.
+
+Recover the derived r3 artifacts on a build machine:
+
+```powershell
+git lfs pull --include="db/lasalledb.npy"
+python rebuild_release.py --descriptor selected --output-root enrollment `
+  --release-name release-r3_n8_g6x6
+python ex-pc-detect.py
+```
+
+The upstream `.npy` database contains the selected LBPH tiles and SFace
+embeddings, so the generated `lbph.yml` and `sface_gallery.npy` do not need to
+be committed to this repository. The r3 API retains the hardware-facing
+`HybridCascade` class, BGR `(H, W, 3)` input, `list[dict]` output, and
+`bbox=(x, y, w, h)` result shape. New diagnostics are additive; quality-first
+frames intentionally report `lbph_distance=None` because LBPH is skipped.
