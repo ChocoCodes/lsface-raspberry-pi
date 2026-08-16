@@ -3,6 +3,6 @@ venv
 *.log
 ex-*.py 
 !ex-pc-detect.py
-
+logs/
 # Rebuilt r3 enrollment artifacts stay local; regenerate from db/lasalledb.npy.
 enrollment/

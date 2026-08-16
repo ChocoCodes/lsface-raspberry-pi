@@ -2,4 +2,4 @@ numpy
 opencv-contrib-python
 
 # # Note: For the Raspberry Pi, you will also need the camera library:
-# picamera2
+# sudo apt install python3-picamera2
