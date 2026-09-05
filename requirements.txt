@@ -1,5 +1,20 @@
 numpy
 opencv-contrib-python
+certifi==2026.7.22
+charset-normalizer==3.5.1
+docutils==0.23
+filetype==1.2.0
+idna==3.19
+Kivy==2.3.1
+kivy-deps.angle==0.4.0
+kivy-deps.glew==0.3.1
+Kivy-Garden==0.1.5
+kivy_deps.sdl2==0.8.0
+Pygments==2.21.0
+pypiwin32==223
+pywin32==312
+requests==2.34.2
+urllib3==2.7.0
 
 # # Note: For the Raspberry Pi, you will also need the camera library:
 # picamera2

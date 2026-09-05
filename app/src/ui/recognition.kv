@@ -1,0 +1,36 @@
+#:kivy 2.3.1
+
+<RecognitionScreen>:
+    BoxLayout:
+        orientation: 'vertical'
+        padding: ['20dp', '20dp', '20dp', '20dp']
+        spacing: '15dp'
+
+        BoxLayout:
+            size_hint_y: None
+            height: '40dp'
+            spacing: '10dp'
+
+            Button:
+                text: '< Back'
+                size_hint_x: None
+                width: '110dp'
+                background_normal: ''
+                background_color: (0.85, 0.85, 0.85, 1)
+                color: (0.1, 0.1, 0.1, 1)
+                on_release: root.go_back()
+
+            Label:
+                text: 'Live Recognition'
+                font_size: '20sp'
+                bold: True
+                color: (0.1, 0.1, 0.1, 1)
+
+        Image:
+            id: camera_feed
+
+        Label:
+            text: root.status_text
+            size_hint_y: None
+            height: '30dp'
+            color: (0.1, 0.1, 0.1, 1)
