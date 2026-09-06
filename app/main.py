@@ -4,7 +4,7 @@ from kivy.uix.screenmanager import ScreenManager, FadeTransition
  
 from src.views.home import HomeScreen
 from src.views.recognition import RecognitionScreen
- 
+from src.views.identities import ManageIdentitiesScreen
  
 class LSFaceApp(App):
     title = "LS-Face"
@@ -16,6 +16,7 @@ class LSFaceApp(App):
         sm = ScreenManager(transition=FadeTransition(duration=0.15))
         sm.add_widget(HomeScreen(name="home"))
         sm.add_widget(RecognitionScreen(name="recognition"))
+        sm.add_widget(ManageIdentitiesScreen(name="identities"))
         sm.current = "home"
         return sm
  
