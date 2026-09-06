@@ -1,14 +1,14 @@
 import time
-
 import cv2 as cv
 
 from kivy.clock import Clock
 from kivy.graphics.texture import Texture
 from kivy.lang import Builder
-from kivy.properties import NumericProperty, StringProperty
+from kivy.properties import StringProperty
 from kivy.uix.screenmanager import Screen
 
 from src.config.config import KV_PATH
+from src.engine.camera.factory import camera_factory
 from src.engine.build_cascade import (
     CAM_INDEX as DEFAULT_CAM_INDEX,
     RES_DEFAULT,
@@ -26,12 +26,13 @@ CHOICE = "2"  # new setup / r3_n8_g6x6, quality-first -> recognition mode
 
 
 class RecognitionScreen(Screen):
-    camera_index = NumericProperty(0)
+    camera_mode = StringProperty("Default PC Camera")
     status_text = StringProperty("Initializing...")
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.capture = None
+
+        self.camera = None
         self.cascade = None
         self.log_file = None
         self.frame_count = 0
@@ -46,9 +47,11 @@ class RecognitionScreen(Screen):
         if self._update_event is not None:
             self._update_event.cancel()
             self._update_event = None
-        if self.capture is not None:
-            self.capture.release()
-            self.capture = None
+
+        if self.camera is not None:
+            self.camera.stop()
+            self.camera = None
+
         self.cascade = None
         self.frame_count = 0
         self.status_text = "Initializing..."
@@ -64,31 +67,31 @@ class RecognitionScreen(Screen):
 
         try:
             self.cascade = build_selected_cascade(CHOICE)
-        except Exception as exc:
-            self.status_text = f"[Error] Failed to load cascade: {exc}"
+        except Exception as e:
+            self.status_text = f"[Error] Failed to load cascade: {e}"
             return
 
-        cam_index = self.camera_index if self.camera_index is not None else DEFAULT_CAM_INDEX
-        self.capture = cv.VideoCapture(cam_index)
-        self.capture.set(cv.CAP_PROP_FRAME_WIDTH, RES_DEFAULT[0])
-        self.capture.set(cv.CAP_PROP_FRAME_HEIGHT, RES_DEFAULT[1])
-
-        if not self.capture.isOpened():
-            self.status_text = f"[CameraError] Could not open webcam at index {cam_index}."
-            return
+        try:
+            self.camera = camera_factory(self.camera_mode)
+            self.camera.start()
+        except Exception as e:
+            self.status_text = f"[CameraError] Could not start {self.camera_mode}: {e}"
+            self.camera = None
+            return 
 
         self.status_text = "Recognition running..."
         self._update_event = Clock.schedule_interval(self.update, 1.0 / 30.0)
 
     # --- Per-frame loop ----------------------------------------------------
     def update(self, _dt):
-        if self.capture is None or not self.capture.isOpened():
+        if self.camera is None:
             return
 
         start_time = time.time()
-        ret, frame_bgr = self.capture.read()
-        if not ret or frame_bgr is None:
-            self.status_text = "[CameraError] Failed to read frame from webcam."
+        try:
+            frame_bgr = self.camera.read()
+        except Exception as e:
+            self.status_text = f"[CameraError] Failed to read frame: {e}"
             return
 
         infer_start = time.time()
