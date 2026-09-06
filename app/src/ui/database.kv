@@ -1,10 +1,10 @@
 #:kivy 2.3.1
 
-<RecognitionScreen>:
+<DatabaseScreen>:
     BoxLayout:
         orientation: 'vertical'
         padding: ['34dp', '24dp', '34dp', '26dp']
-        spacing: '14dp'
+        spacing: '18dp'
         canvas.before:
             Color:
                 rgba: (0.045, 0.063, 0.094, 1)
@@ -15,7 +15,6 @@
         BoxLayout:
             size_hint_y: None
             height: '42dp'
-            spacing: '12dp'
 
             Button:
                 text: '‹  Back'
@@ -27,43 +26,32 @@
                 on_release: root.go_back()
 
             Label:
-                text: 'LIVE RECOGNITION'
+                text: 'VIEW IDENTITIES'
                 font_size: '17sp'
                 bold: True
                 color: (0.93, 0.96, 0.98, 1)
                 halign: 'left'
                 text_size: self.size
 
-            Label:
-                text: 'LIVE'
-                size_hint_x: None
-                width: '76dp'
-                color: (0.42, 0.91, 0.75, 1)
-                bold: True
-                halign: 'right'
-                text_size: self.size
-
-        BoxLayout:
-            padding: ['16dp', '16dp', '16dp', '16dp']
-            canvas.before:
-                Color:
-                    rgba: (0.09, 0.12, 0.17, 1)
-                RoundedRectangle:
-                    pos: self.pos
-                    size: self.size
-                    radius: [18,]
-
-            Image:
-                id: camera_feed
-                allow_stretch: True
-                keep_ratio: True
+        Widget:
 
         Label:
-            text: root.status_text
+            text: 'No local identities yet'
             size_hint_y: None
-            height: '28dp'
-            font_size: '13sp'
+            height: '44dp'
+            font_size: '28sp'
+            bold: True
+            color: (0.93, 0.96, 0.98, 1)
+            halign: 'center'
+            text_size: self.size
+
+        Label:
+            text: 'This version does not create or store identity records.'
+            size_hint_y: None
+            height: '30dp'
+            font_size: '14sp'
             color: (0.66, 0.72, 0.80, 1)
             halign: 'center'
-            valign: 'middle'
             text_size: self.size
+
+        Widget:

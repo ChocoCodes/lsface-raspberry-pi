@@ -1,0 +1,85 @@
+#:kivy 2.3.1
+
+<VoiceRecognitionScreen>:
+    canvas.before:
+        Color:
+            rgba: (0.045, 0.063, 0.094, 1)
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+    BoxLayout:
+        orientation: 'vertical'
+        padding: ['34dp', '24dp', '34dp', '26dp']
+        spacing: '18dp'
+
+        BoxLayout:
+            size_hint_y: None
+            height: '42dp'
+            spacing: '12dp'
+
+            Button:
+                text: '‹  Back'
+                size_hint_x: None
+                width: '100dp'
+                background_normal: ''
+                background_color: (0.12, 0.16, 0.23, 1)
+                color: (0.93, 0.96, 0.98, 1)
+                on_release: root.go_back()
+
+            Label:
+                text: 'VOICE RECOGNITION'
+                font_size: '17sp'
+                bold: True
+                color: (0.93, 0.96, 0.98, 1)
+                halign: 'left'
+                valign: 'middle'
+                text_size: self.size
+
+        Widget:
+
+        BoxLayout:
+            orientation: 'vertical'
+            size_hint: (None, None)
+            size: ('520dp', '220dp')
+            pos_hint: {'center_x': 0.5}
+            padding: ['30dp', '28dp', '30dp', '28dp']
+            spacing: '12dp'
+            canvas.before:
+                Color:
+                    rgba: (0.12, 0.16, 0.23, 1)
+                RoundedRectangle:
+                    pos: self.pos
+                    size: self.size
+                    radius: [18,]
+
+            Label:
+                text: 'Voice Recognition'
+                size_hint_y: None
+                height: '38dp'
+                font_size: '25sp'
+                bold: True
+                color: (0.42, 0.91, 0.75, 1)
+                halign: 'center'
+                valign: 'middle'
+                text_size: self.size
+
+            Label:
+                text: 'This is a static screen for the voice-recognition step.'
+                size_hint_y: None
+                height: '28dp'
+                font_size: '14sp'
+                color: (0.93, 0.96, 0.98, 1)
+                halign: 'center'
+                valign: 'middle'
+                text_size: self.size
+
+            Label:
+                text: 'No voice input or recording is active.'
+                font_size: '13sp'
+                color: (0.66, 0.72, 0.80, 1)
+                halign: 'center'
+                valign: 'middle'
+                text_size: self.size
+
+        Widget:

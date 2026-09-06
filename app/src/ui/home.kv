@@ -3,127 +3,250 @@
 
 <ActionCard@ButtonBehavior+BoxLayout>:
     orientation: 'vertical'
-    padding: [10, 25, 10, 20]
-    spacing: '15dp'
+    padding: ['24dp', '24dp', '24dp', '24dp']
+    spacing: '14dp'
     card_title: ''
+    card_body: ''
     icon_source: ''
-
     canvas.before:
         Color:
-            rgba: (0.94, 0.94, 0.94, 1) if self.state == 'down' else (1, 1, 1, 1)
-        Rectangle:
+            rgba: (0.12, 0.16, 0.23, 1) if self.state == 'normal' else (0.16, 0.22, 0.29, 1)
+        RoundedRectangle:
             pos: self.pos
             size: self.size
+            radius: [18,]
+
+    AnchorLayout:
+        anchor_x: 'center'
+        anchor_y: 'center'
+        size_hint_y: 1
+
+        BoxLayout:
+            orientation: 'vertical'
+            size_hint: (1, None)
+            height: '184dp'
+            spacing: '14dp'
+
+            Image:
+                source: root.icon_source
+                size_hint_y: None
+                height: '82dp'
+                allow_stretch: True
+                keep_ratio: True
+
+            Label:
+                text: root.card_title
+                size_hint_y: None
+                height: '30dp'
+                font_size: '22sp'
+                bold: True
+                color: (0.93, 0.96, 0.98, 1)
+                halign: 'center'
+                valign: 'middle'
+                text_size: self.size
+
+            Label:
+                text: root.card_body
+                size_hint_y: None
+                height: '44dp'
+                font_size: '14sp'
+                color: (0.66, 0.72, 0.80, 1)
+                halign: 'center'
+                valign: 'middle'
+                text_size: self.size
+
+<HeaderButton@ButtonBehavior+BoxLayout>:
+    orientation: 'horizontal'
+    size_hint_y: None
+    height: '42dp'
+    padding: ['12dp', 0, '12dp', 0]
+    spacing: '8dp'
+    button_text: ''
+    icon_source: ''
+    canvas.before:
         Color:
-            rgba: (0.2, 0.2, 0.2, 1)
+            rgba: (0.12, 0.16, 0.23, 1) if self.state == 'normal' else (0.16, 0.22, 0.29, 1)
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [11,]
+    canvas.after:
+        Color:
+            rgba: (0.34, 0.46, 0.58, 1)
         Line:
-            width: 1.2
-            rectangle: (self.x, self.y, self.width, self.height)
+            rounded_rectangle: (self.x, self.y, self.width, self.height, 11)
+            width: 1
 
     Image:
         source: root.icon_source
-        mipmap: True
-        size_hint_y: 0.65
+        size_hint: (None, None)
+        size: ('18dp', '18dp')
         allow_stretch: True
         keep_ratio: True
+        pos_hint: {'center_y': 0.5}
 
     Label:
-        text: root.card_title
-        size_hint_y: 0.4
-        font_size: '18sp'
-        color: (0.1, 0.1, 0.1, 1)
-        halign: 'center'
+        text: root.button_text
+        font_size: '13sp'
+        color: (0.93, 0.96, 0.98, 1)
+        halign: 'left'
         valign: 'middle'
+        text_size: self.size
+
+<HeaderSpinner@Spinner>:
+    size_hint_y: None
+    height: '42dp'
+    background_normal: ''
+    background_color: (0, 0, 0, 0)
+    color: (0.93, 0.96, 0.98, 1)
+    font_size: '13sp'
+    padding: ['12dp', 0, '12dp', 0]
+    halign: 'left'
+    valign: 'middle'
+    text_size: self.size
+    canvas.before:
+        Color:
+            rgba: (0.12, 0.16, 0.23, 1) if self.state == 'normal' else (0.16, 0.22, 0.29, 1)
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [11,]
+    canvas.after:
+        Color:
+            rgba: (0.34, 0.46, 0.58, 1)
+        Line:
+            rounded_rectangle: (self.x, self.y, self.width, self.height, 11)
+            width: 1
 
 <HomeScreenView>:
     orientation: 'vertical'
-    padding: ['40dp', '60dp', '40dp', '60dp']
-    spacing: '25dp'
+    padding: ['48dp', '42dp', '48dp', '38dp']
+    spacing: '24dp'
+    canvas.before:
+        Color:
+            rgba: (0.045, 0.063, 0.094, 1)
+        Rectangle:
+            pos: self.pos
+            size: self.size
 
-    # App Header
-    Label:
-        text: 'Face Recognition System using LS-Face'
-        font_size: '22sp'
-        bold: True
-        color: (0.1, 0.1, 0.1, 1)
-        size_hint_y: None
-        height: '40dp'
-
-    # Controls Section (Camera & DB Selection)
     BoxLayout:
-        orientation: 'vertical'
-        size_hint: (None, None)
-        size: ('320dp', '150dp')
-        pos_hint: {'center_x': 0.5}
-        spacing: '8dp'
+        size_hint_y: None
+        height: '76dp'
+        spacing: '24dp'
 
-        Label:
-            text: 'Camera'
-            font_size: '14sp'
-            color: (0.2, 0.2, 0.2, 1)
-            size_hint: (1, None)
-            height: 18
-            text_size: self.size
-            halign: 'left'
+        BoxLayout:
+            orientation: 'vertical'
+            spacing: '2dp'
 
-        Spinner:
-            id: camera_selector
-            text: 'Select Camera'
-            values: ['Camera 0 (Built-in)', 'Camera 1 (USB Webcam)']
-            size_hint: (1, None)
-            height: 38
-            background_normal: ''
-            background_color: (0.85, 0.85, 0.85, 1)
-            color: (0.1, 0.1, 0.1, 1)
-            on_text: root.on_camera_changed(self.text)
+            BoxLayout:
+                size_hint_y: None
+                height: '36dp'
+                spacing: '8dp'
 
-        Label:
-            text: 'Database'
-            font_size: '14sp'
-            color: (0.2, 0.2, 0.2, 1)
-            size_hint: (1, None)
-            height: 18
-            text_size: self.size
-            halign: 'left'
+                Image:
+                    source: f"{ICONS_PATH}/smart-gate.png"
+                    size_hint_x: None
+                    width: '28dp'
+                    size_hint_y: None
+                    height: '28dp'
+                    allow_stretch: True
+                    keep_ratio: True
+                    pos_hint: {'center_y': 0.5}
 
-        Spinner:
-            id: db_selector
-            text: 'Select Database'
-            values: ['primary_embeddings.db', 'local_backup.pkl']
-            size_hint: (1, None)
-            height: 38
-            background_normal: ''
-            background_color: (0.85, 0.85, 0.85, 1)
-            color: (0.1, 0.1, 0.1, 1)
-            on_text: root.on_database_changed(self.text)
+                Label:
+                    text: 'Smart Gate'
+                    font_size: '27sp'
+                    bold: True
+                    color: (0.93, 0.96, 0.98, 1)
+                    halign: 'left'
+                    valign: 'middle'
+                    text_size: self.size
 
-    # Spacer
+            Label:
+                text: 'An Edge-Based Facial Recognition System Using LS-Face'
+                font_size: '13sp'
+                color: (0.66, 0.72, 0.80, 1)
+                halign: 'left'
+                valign: 'middle'
+                text_size: self.size
+
+        BoxLayout:
+            size_hint_x: None
+            width: '424dp'
+            spacing: '12dp'
+
+            BoxLayout:
+                orientation: 'vertical'
+                size_hint_x: None
+                size_hint_y: None
+                width: '188dp'
+                height: '64dp'
+                spacing: '4dp'
+                pos_hint: {'center_y': 0.5}
+
+                Label:
+                    text: 'Camera'
+                    size_hint_y: None
+                    height: '18dp'
+                    font_size: '12sp'
+                    color: (0.66, 0.72, 0.80, 1)
+                    halign: 'left'
+                    text_size: self.size
+
+                HeaderSpinner:
+                    id: camera_selector
+                    text: 'Camera 0 (Built-in)'
+                    values: ['Camera 0 (Built-in)', 'Camera 1 (USB Webcam)']
+                    on_text: root.on_camera_changed(self.text)
+
+            BoxLayout:
+                orientation: 'vertical'
+                size_hint_x: None
+                size_hint_y: None
+                width: '224dp'
+                height: '64dp'
+                pos_hint: {'center_y': 0.5}
+
+                Widget:
+                    size_hint_y: None
+                    height: '22dp'
+
+                HeaderButton:
+                    button_text: 'Calibrate Pose Detection'
+                    icon_source: f"{ICONS_PATH}/settings.png"
+                    size_hint_x: 1
+                    on_release: root.open_pose_setup()
+
     Widget:
-        size_hint_y: None
-        height: 20
+        size_hint_y: 0.18
 
-    # 3 Main Actions Row
     BoxLayout:
-        orientation: 'horizontal'
-        size_hint: (None, None)
-        size: ('660dp', '200dp')
-        pos_hint: {'center_x': 0.5}
-        spacing: '25dp'
+        size_hint_y: 0.62
+        spacing: '22dp'
 
         ActionCard:
             card_title: 'Add Identity'
+            card_body: 'Guided PnP pose scan\nFive positions. No photos saved.'
             icon_source: f"{ICONS_PATH}/user-plus.png"
             on_release: root.open_add_identity()
 
         ActionCard:
-            card_title: 'Recognition'
+            card_title: 'Live Recognition'
+            card_body: 'Open the current live recognition view.'
             icon_source: f"{ICONS_PATH}/scan-text.png"
             on_release: root.open_recognition()
 
         ActionCard:
             card_title: 'View Identities'
+            card_body: 'Check the local identity database.'
             icon_source: f"{ICONS_PATH}/user-round-pen.png"
             on_release: root.open_view_identities()
 
-    Widget:
-        size_hint_y: 1
+    Label:
+        text: 'One participant at a time. Preview mirroring never changes pose direction.'
+        size_hint_y: None
+        height: '24dp'
+        font_size: '12sp'
+        color: (0.50, 0.56, 0.65, 1)
+        halign: 'center'
+        text_size: self.size
