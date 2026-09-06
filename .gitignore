@@ -2,7 +2,12 @@ __pycache__
 venv
 *.log
 ex-*.py 
-!ex-pc-detect.py
+!pose-detection/ex-pc-detect.py
 
 # Rebuilt r3 enrollment artifacts stay local; regenerate from db/lasalledb.npy.
 enrollment/
+
+# Local pose experiments and generated optional models.
+logs/
+models/head_pose/
+app/config/head_pose.local*.json
