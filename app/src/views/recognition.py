@@ -5,6 +5,7 @@ import cv2 as cv
 from kivy.animation import Animation
 from kivy.app import App
 from kivy.clock import Clock
+from kivy.core.window import Window
 from kivy.graphics.texture import Texture
 from kivy.lang import Builder
 from kivy.properties import BooleanProperty, NumericProperty, StringProperty
@@ -56,6 +57,7 @@ class RecognitionScreen(Screen):
         self._expected_match_streak = 0
         self._last_frame_signature = None
         self._database_route_note = ""
+        self._keys_bound = False
 
     def configure_session(self, database_id, expected_identity_name, session_id=None):
         """Set voice-enrollment context before entering live recognition."""
@@ -144,10 +146,17 @@ class RecognitionScreen(Screen):
     # --- Screen lifecycle ---------------------------------------------
     def on_enter(self, *args):
         self._activate_session()
+        if not self._keys_bound:
+            Window.bind(on_key_down=self._on_key_down)
+            self._keys_bound = True
         # Defer heavy init so the screen transition isn't blocked.
         self._initialize_event = Clock.schedule_once(self._initialize, 0)
 
     def on_leave(self, *args):
+        if self._keys_bound:
+            Window.unbind(on_key_down=self._on_key_down)
+            self._keys_bound = False
+
         if self._initialize_event is not None:
             self._initialize_event.cancel()
             self._initialize_event = None
@@ -174,6 +183,14 @@ class RecognitionScreen(Screen):
 
     def go_back(self):
         self.manager.current = "home"
+
+    def _on_key_down(self, _window, key, _scancode, codepoint, _modifiers):
+        if not self.greeting_visible:
+            return False
+        if key in (13, 27, 32) or codepoint in ("\r", "\n", " "):
+            self.go_back()
+            return True
+        return False
 
     # --- Setup -----------------------------------------------------------
     def _initialize(self, _dt):

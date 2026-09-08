@@ -24,7 +24,7 @@
                 size_hint_x: None
                 width: '100dp'
                 background_normal: ''
-                background_color: (0.12, 0.16, 0.23, 1)
+                background_color: (0.12, 0.16, 0.23, 1) if self.state == 'normal' else (0.16, 0.22, 0.29, 1)
                 color: (0.93, 0.96, 0.98, 1)
                 disabled: root.state == 'committing'
                 on_release: root.go_back()
@@ -50,84 +50,113 @@
 
         Widget:
             size_hint_y: None
-            height: '2dp'
+            height: '40dp'
 
-        Label:
-            text: root.prompt_text
+        AnchorLayout:
             size_hint_y: None
-            height: '52dp'
-            font_size: '30sp'
-            bold: True
-            color: (0.42, 0.91, 0.75, 1)
-            halign: 'center'
-            valign: 'middle'
-            text_size: self.size
-
-        Label:
-            text: root.status_text
-            size_hint_y: None
-            height: '28dp'
-            font_size: '15sp'
-            color: (0.93, 0.96, 0.98, 1)
-            halign: 'center'
-            valign: 'middle'
-            text_size: self.size
-
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: '300dp'
-            spacing: '26dp'
-            padding: ['26dp', '24dp', '26dp', '24dp']
-            canvas.before:
-                Color:
-                    rgba: (0.09, 0.12, 0.17, 1)
-                RoundedRectangle:
-                    pos: self.pos
-                    size: self.size
-                    radius: [18,]
-
-            Widget:
-                size_hint_x: None
-                width: '190dp'
-                canvas:
-                    Color:
-                        rgba: (0.42, 0.91, 0.75, 0.16 + root.audio_level * 0.34)
-                    Line:
-                        circle: (self.center_x, self.center_y, dp(78))
-                        width: 3.0
-                    Color:
-                        rgba: (0.14, 0.22, 0.27, 1)
-                    RoundedRectangle:
-                        pos: (self.center_x - dp(25), self.center_y - dp(55))
-                        size: (dp(50), dp(94))
-                        radius: [dp(25),]
-                    Color:
-                        rgba: (0.42, 0.91, 0.75, 1)
-                    RoundedRectangle:
-                        pos: (self.center_x - dp(16), self.center_y - dp(45))
-                        size: (dp(32), dp(72))
-                        radius: [dp(16),]
-                    Line:
-                        points: (self.center_x - dp(54), self.center_y - dp(2), self.center_x - dp(54), self.center_y - dp(2), self.center_x, self.center_y - dp(70), self.center_x + dp(54), self.center_y - dp(2), self.center_x + dp(54), self.center_y - dp(2))
-                        width: 4.0
-                    Line:
-                        points: (self.center_x, self.center_y - dp(70), self.center_x, self.center_y - dp(91))
-                        width: 4.0
-                    Line:
-                        points: (self.center_x - dp(22), self.center_y - dp(91), self.center_x + dp(22), self.center_y - dp(91))
-                        width: 4.0
+            height: '468dp'
+            anchor_x: 'center'
+            anchor_y: 'top'
 
             BoxLayout:
                 orientation: 'vertical'
+                size_hint: None, None
+                width: '720dp'
+                height: '468dp'
                 spacing: '10dp'
 
                 Label:
-                    text: 'Name / transcript'
+                    text: 'VOICE-ASSISTED CHECKPOINT'
                     size_hint_y: None
-                    height: '28dp'
-                    font_size: '13sp'
+                    height: '20dp'
+                    font_size: '11sp'
+                    bold: True
+                    color: (0.42, 0.91, 0.75, 1)
+                    halign: 'left'
+                    valign: 'middle'
+                    text_size: self.size
+
+                Label:
+                    text: root.prompt_text
+                    size_hint_y: None
+                    height: '52dp'
+                    font_size: '36sp'
+                    bold: True
+                    color: (0.93, 0.96, 0.98, 1)
+                    halign: 'left'
+                    valign: 'middle'
+                    text_size: self.size
+
+                Label:
+                    text: 'Say your name if voice input is available, or type it below.'
+                    size_hint_y: None
+                    height: '42dp'
+                    font_size: '16sp'
                     color: (0.67, 0.72, 0.80, 1)
+                    halign: 'left'
+                    valign: 'top'
+                    text_size: self.size
+
+                BoxLayout:
+                    size_hint_y: None
+                    height: '44dp'
+                    spacing: '12dp'
+
+                    Widget:
+                        size_hint_x: None
+                        width: '28dp'
+                        canvas:
+                            Color:
+                                rgba: (0.42, 0.91, 0.75, 0.24 + root.audio_level * 0.76)
+                            Ellipse:
+                                pos: (self.center_x - dp(5), self.center_y - dp(5))
+                                size: (dp(10), dp(10))
+                            Line:
+                                circle: (self.center_x, self.center_y, dp(11))
+                                width: 1.2
+
+                    BoxLayout:
+                        orientation: 'vertical'
+                        spacing: '4dp'
+
+                        Label:
+                            text: root.audio_status
+                            size_hint_y: None
+                            height: '28dp'
+                            font_size: '12sp'
+                            color: (0.67, 0.72, 0.80, 1)
+                            halign: 'left'
+                            valign: 'middle'
+                            text_size: self.size
+
+                        ProgressBar:
+                            max: 1
+                            value: root.audio_level
+                            size_hint_y: None
+                            height: '5dp'
+
+                    Label:
+                        text: 'MIC INPUT'
+                        size_hint_x: None
+                        width: '82dp'
+                        font_size: '10sp'
+                        bold: True
+                        color: (0.50, 0.56, 0.65, 1)
+                        halign: 'right'
+                        valign: 'middle'
+                        text_size: self.size
+
+                Widget:
+                    size_hint_y: None
+                    height: '14dp'
+
+                Label:
+                    text: 'Your name'
+                    size_hint_y: None
+                    height: '20dp'
+                    font_size: '14sp'
+                    bold: True
+                    color: (0.93, 0.96, 0.98, 1)
                     halign: 'left'
                     valign: 'middle'
                     text_size: self.size
@@ -136,79 +165,93 @@
                     id: name_input
                     text: root.transcript
                     multiline: False
-                    hint_text: 'Type the person\'s name'
+                    hint_text: 'Type or confirm the person\'s name'
                     disabled: root.name_locked or root.state == 'complete'
                     size_hint_y: None
-                    height: '50dp'
-                    padding: ['14dp', '12dp']
-                    background_color: (0.14, 0.18, 0.25, 1)
+                    height: '72dp'
+                    padding: ['20dp', '18dp']
+                    font_size: '28sp'
+                    background_normal: ''
+                    background_active: ''
+                    background_color: (0.12, 0.16, 0.23, 1)
                     foreground_color: (0.93, 0.96, 0.98, 1)
+                    hint_text_color: (0.50, 0.56, 0.65, 1)
                     cursor_color: (0.42, 0.91, 0.75, 1)
+                    selection_color: (0.42, 0.91, 0.75, 0.28)
                     on_text: root.set_transcript_from_input(self.text)
                     on_text_validate: root.continue_enrollment()
+                    canvas.after:
+                        Color:
+                            rgba: (0.42, 0.91, 0.75, 1) if self.focus else (0.23, 0.31, 0.42, 1)
+                        Line:
+                            rounded_rectangle: (self.x, self.y, self.width, self.height, dp(12))
+                            width: 1.4 if self.focus else 1
 
-                Label:
-                    text: root.audio_status
+                BoxLayout:
                     size_hint_y: None
-                    height: '34dp'
-                    font_size: '12sp'
-                    color: (0.67, 0.72, 0.80, 1)
-                    halign: 'left'
-                    valign: 'middle'
-                    text_size: self.size
+                    height: '56dp'
+                    spacing: '16dp'
 
-                Label:
-                    text: 'Optional microphone level'
-                    size_hint_y: None
-                    height: '18dp'
-                    font_size: '11sp'
-                    color: (0.50, 0.56, 0.65, 1)
-                    halign: 'left'
-                    text_size: self.size
+                    Label:
+                        text: 'Check the name, then press Enter.'
+                        font_size: '13sp'
+                        color: (0.50, 0.56, 0.65, 1)
+                        halign: 'left'
+                        valign: 'middle'
+                        text_size: self.size
 
-                ProgressBar:
-                    max: 1
-                    value: root.audio_level
-                    size_hint_y: None
-                    height: '8dp'
+                    Button:
+                        text: root.action_text
+                        size_hint_x: None
+                        width: '208dp'
+                        background_normal: ''
+                        background_color: (0.17, 0.70, 0.54, 1) if root.continue_enabled else (0.12, 0.16, 0.23, 1)
+                        color: (0.03, 0.08, 0.07, 1) if root.continue_enabled else (0.45, 0.50, 0.58, 1)
+                        disabled: not root.continue_enabled
+                        on_release: root.continue_enrollment()
 
-                Label:
-                    text: root.progress_text
-                    size_hint_y: None
-                    height: '28dp'
-                    font_size: '13sp'
-                    color: (0.42, 0.91, 0.75, 1) if root.state != 'error' else (1, 0.64, 0.47, 1)
-                    halign: 'left'
-                    valign: 'middle'
-                    text_size: self.size
+                BoxLayout:
+                    size_hint_y: 1
+                    padding: ['14dp', '8dp', '14dp', '8dp']
+                    spacing: '12dp'
+                    canvas.before:
+                        Color:
+                            rgba: (0.09, 0.12, 0.17, 1)
+                        RoundedRectangle:
+                            pos: self.pos
+                            size: self.size
+                            radius: [12,]
 
-                ProgressBar:
-                    max: 1
-                    value: root.enrollment_progress
-                    size_hint_y: None
-                    height: '9dp'
+                    Widget:
+                        size_hint_x: None
+                        width: '6dp'
+                        canvas:
+                            Color:
+                                rgba: (1, 0.64, 0.47, 1) if root.state == 'error' else (0.42, 0.91, 0.75, 1)
+                            RoundedRectangle:
+                                pos: self.pos
+                                size: self.size
+                                radius: [3,]
+
+                    BoxLayout:
+                        orientation: 'vertical'
+                        spacing: '2dp'
+
+                        Label:
+                            text: root.status_text
+                            font_size: '13sp'
+                            bold: True
+                            color: (1, 0.64, 0.47, 1) if root.state == 'error' else (0.93, 0.96, 0.98, 1)
+                            halign: 'left'
+                            valign: 'middle'
+                            text_size: self.size
+
+                        Label:
+                            text: root.progress_text
+                            font_size: '12sp'
+                            color: (1, 0.64, 0.47, 1) if root.state == 'error' else (0.67, 0.72, 0.80, 1)
+                            halign: 'left'
+                            valign: 'middle'
+                            text_size: self.size
 
         Widget:
-
-        BoxLayout:
-            size_hint_y: None
-            height: '48dp'
-            spacing: '12dp'
-
-            Label:
-                text: 'Press Enter after confirming the displayed name.'
-                font_size: '12sp'
-                color: (0.50, 0.56, 0.65, 1)
-                halign: 'left'
-                valign: 'middle'
-                text_size: self.size
-
-            Button:
-                text: root.action_text
-                size_hint_x: None
-                width: '220dp'
-                background_normal: ''
-                background_color: (0.17, 0.70, 0.54, 1) if root.continue_enabled else (0.12, 0.16, 0.23, 1)
-                color: (0.03, 0.08, 0.07, 1) if root.continue_enabled else (0.45, 0.50, 0.58, 1)
-                disabled: not root.continue_enabled
-                on_release: root.continue_enrollment()
