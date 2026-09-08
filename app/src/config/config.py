@@ -19,6 +19,7 @@ DB_PATH = Path(__file__).resolve().parents[2] / "db"
 DB = {
     "La Salle Database": DB_PATH / "lasalledb.npy",
 }
+ENROLLMENT_ROOT = BASE_PATH / "engine" / "enrollment"
 DATABASE_NAMES = tuple(DB)
 
 CAMERA_OPTIONS = {

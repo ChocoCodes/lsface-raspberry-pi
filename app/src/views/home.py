@@ -80,5 +80,5 @@ class HomeScreen(Screen):
             print(f"[DATABASE] Unknown database: {db_name}")
             return
 
-        self.feature_db = DatabaseManager.load(db_path)
+        self.feature_db = DatabaseManager.ensure_release(db_path)
         print(f"Loaded {self.feature_db.get_identity_count()} identities from {db_name}")
