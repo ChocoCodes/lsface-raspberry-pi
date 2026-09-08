@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from pathlib import Path
-import threading
 import time
+from uuid import uuid4
 
 import cv2 as cv
 import numpy as np
@@ -15,9 +15,7 @@ from kivy.lang import Builder
 from kivy.properties import ListProperty, NumericProperty, StringProperty
 from kivy.uix.screenmanager import Screen
 
-from src.config.config import DB, KV_PATH
-from src.engine.database.database_manager import DatabaseManager
-from src.engine.database.feature_db import FeatureDB
+from src.config.config import KV_PATH
 
 from src.pose_detection.flow import (
     LABELS,
@@ -51,6 +49,7 @@ class PoseScreen(Screen):
     action_text = StringProperty("")
     progress_value = NumericProperty(0.0)
     identity_name = StringProperty("")
+    database_id = StringProperty("")
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -64,9 +63,15 @@ class PoseScreen(Screen):
         self._saved_setup = False
         self._keys_bound = False
         self._captured_frames: dict[str, np.ndarray] = {}
-        self._enrollment_thread = None
-        self._enrollment_result = None
-        self._enrollment_poll = None
+        self._handoff_started = False
+
+    def on_kv_post(self, *_args):
+        if self.mode == "scan":
+            name_input = self.ids.get("identity_name_input")
+            if name_input is not None and name_input.parent is not None:
+                # The name is collected on the voice screen after pose capture.
+                name_input.parent.height = 0
+                name_input.parent.opacity = 0
 
     def on_enter(self, *_args):
         Clock.schedule_once(self._initialize, 0)
@@ -87,7 +92,7 @@ class PoseScreen(Screen):
         self._saved_setup = False
         self.identity_name = ""
         self._captured_frames = {}
-        self._enrollment_result = None
+        self._handoff_started = False
         try:
             config = self._profile_config()
             self.tracker = HeadPoseTracker(config=config)
@@ -270,16 +275,6 @@ class PoseScreen(Screen):
             self.go_back()
             return
         if self.mode == "scan" and self.flow is not None and self.phase == "ready":
-            try:
-                normalized_name = FeatureDB.normalize_name(self.identity_name)
-            except ValueError as exc:
-                self.note_text = str(exc)
-                return
-            home = self.manager.get_screen("home")
-            if home.feature_db is not None and normalized_name in home.feature_db.db:
-                self.note_text = f"Identity {normalized_name!r} already exists."
-                return
-            self.identity_name = normalized_name
             self.flow.start(now)
             self.phase = self.flow.phase
             self._refresh_text()
@@ -290,10 +285,12 @@ class PoseScreen(Screen):
             self.phase = self.flow.phase
             self.pose = None
             self._last_pose = -float("inf")
+            self._captured_frames = {}
+            self._handoff_started = False
             self._refresh_text()
 
     def go_back(self):
-        if self.phase == "saving":
+        if self._handoff_started:
             return
         self._shutdown()
         self.manager.current = "home"
@@ -312,9 +309,6 @@ class PoseScreen(Screen):
 
     def _shutdown(self):
         self._stop_camera()
-        if self._enrollment_poll is not None:
-            self._enrollment_poll.cancel()
-            self._enrollment_poll = None
         self._unbind_setup_keys()
         if self.flow is not None:
             self.flow.close()
@@ -329,62 +323,31 @@ class PoseScreen(Screen):
             self._captured_frames[label] = np.array(frame, copy=True)
 
     def _begin_enrollment(self):
-        if self._enrollment_thread is not None and self._enrollment_thread.is_alive():
-            return
-        if not self.identity_name.strip():
-            self._show_error("Enter an identity name before saving the scan.")
+        if self._handoff_started:
             return
         if set(self._captured_frames) != set(LABELS):
             self._show_error("All five pose frames are required before saving.")
             return
 
-        frames = {label: self._captured_frames[label] for label in LABELS}
-        self.phase = "saving"
-        self.instruction_text = "Saving enrollment"
-        self.note_text = "Extracting features and updating live recognition…"
-        self.action_text = ""
-        self._enrollment_result = None
         home = self.manager.get_screen("home")
-        db_path = DB.get(home.view.ids.db_selector.text)
-
-        def worker():
-            try:
-                database = DatabaseManager.enroll(self.identity_name, frames, db_path=db_path)
-                self._enrollment_result = (database, None)
-            except Exception as exc:
-                self._enrollment_result = (None, exc)
-
-        self._enrollment_thread = threading.Thread(
-            target=worker,
-            name="enrollment-release-builder",
-            daemon=True,
-        )
-        self._enrollment_thread.start()
-        self._enrollment_poll = Clock.schedule_interval(self._poll_enrollment, 0.1)
-
-    def _poll_enrollment(self, _dt):
-        if self._enrollment_thread is None or self._enrollment_thread.is_alive():
-            return
-        if self._enrollment_poll is not None:
-            self._enrollment_poll.cancel()
-            self._enrollment_poll = None
-
-        database, error = self._enrollment_result or (None, RuntimeError("Enrollment did not finish."))
-        self._enrollment_thread = None
-        if error is not None:
-            self.phase = "error"
-            self.instruction_text = "Enrollment needs another try"
-            self.note_text = str(error)
-            self.action_text = "Retry Save"
+        database_id = self.database_id or getattr(home, "database_id", "")
+        if not database_id:
+            self._show_error("No database is selected for this enrollment.")
             return
 
-        home = self.manager.get_screen("home")
-        home.feature_db = database
+        frames = {label: np.array(self._captured_frames[label], copy=True) for label in LABELS}
+        voice_screen = self.manager.get_screen("voice_recognition")
+        self._handoff_started = True
         self.phase = "complete"
-        self.instruction_text = "Enrollment saved"
-        self.note_text = f"{self.identity_name} is ready for live recognition."
-        self.action_text = "Done"
-        self.step_states = ["done"] * len(LABELS)
+        self.action_text = ""
+        self._stop_camera()
+        voice_screen.start_enrollment(
+            frames,
+            database_id=database_id,
+            session_id=uuid4().hex,
+            initial_name=self.identity_name,
+        )
+        self.manager.current = "voice_recognition"
 
     def _show_error(self, message):
         self._stop_camera()

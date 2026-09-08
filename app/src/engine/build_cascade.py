@@ -95,7 +95,12 @@ def load_hybrid_class(module_path: Path):
                 sys.modules[name] = previous
 
 
-def build_selected_cascade(choice: str):
+def build_selected_cascade(
+    choice: str,
+    enrollment_root: str | Path | None = None,
+):
+    """Build a cascade, optionally selecting an isolated database release root."""
+
     if choice not in SETUPS:
         raise ValueError(f"Unknown setup {choice!r}; enter 1 or 2.")
     setup = SETUPS[choice]
@@ -105,7 +110,7 @@ def build_selected_cascade(choice: str):
     return cascade_class(
         models_dir=str(setup["models_root"]),
         config_path=str(setup["config"]),
-        enrollment_root=str(setup["enrollment_root"]),
+        enrollment_root=str(enrollment_root or setup["enrollment_root"]),
     )
 
 

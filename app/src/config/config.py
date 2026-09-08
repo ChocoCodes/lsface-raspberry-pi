@@ -20,6 +20,11 @@ DB = {
     "La Salle Database": DB_PATH / "lasalledb.npy",
 }
 ENROLLMENT_ROOT = BASE_PATH / "engine" / "enrollment"
+# Local catalog data is kept beside the source DB, while the built-in database
+# retains its historical release root above.
+LOCAL_DATABASE_ROOT = DB_PATH / "local"
+DATABASE_CATALOG_PATH = LOCAL_DATABASE_ROOT / "catalog.json"
+CUSTOM_DATABASE_ROOT = LOCAL_DATABASE_ROOT / "databases"
 DATABASE_NAMES = tuple(DB)
 
 CAMERA_OPTIONS = {

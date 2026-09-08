@@ -1,7 +1,6 @@
 #:kivy 2.3.1
 #:import ICONS_PATH src.config.config.ICONS_PATH
 #:import CAMERA_NAMES src.config.config.CAMERA_NAMES
-#:import DATABASE_NAMES src.config.config.DATABASE_NAMES
 
 <ActionCard@ButtonBehavior+BoxLayout>:
     orientation: 'vertical'
@@ -174,14 +173,14 @@
 
         BoxLayout:
             size_hint_x: None
-            width: '640dp'
+            width: '720dp'
             spacing: '12dp'
 
             BoxLayout:
                 orientation: 'vertical'
                 size_hint_x: None
                 size_hint_y: None
-                width: '188dp'
+                width: '248dp'
                 height: '64dp'
                 spacing: '4dp'
                 pos_hint: {'center_y': 0.5}
@@ -219,11 +218,24 @@
                     halign: 'left'
                     text_size: self.size
 
-                HeaderSpinner:
-                    id: db_selector
-                    text: 'La Salle Database'
-                    values: DATABASE_NAMES
-                    on_text: root.on_database_changed(self.text)
+                BoxLayout:
+                    size_hint_y: None
+                    height: '42dp'
+                    spacing: '6dp'
+
+                    HeaderSpinner:
+                        id: db_selector
+                        text: 'La Salle Database'
+                        values: root.database_names
+                        size_hint_x: 1
+                        on_text: root.on_database_changed(self.text)
+
+                    HeaderButton:
+                        button_text: 'New'
+                        icon_source: ''
+                        size_hint_x: None
+                        width: '82dp'
+                        on_release: root.open_new_database()
 
             BoxLayout:
                 orientation: 'vertical'

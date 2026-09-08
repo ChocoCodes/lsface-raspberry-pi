@@ -9,7 +9,7 @@ from kivy.uix.popup import Popup
 from kivy.uix.screenmanager import Screen
 from kivy.lang import Builder
 
-from src.config.config import DB, KV_PATH
+from src.config.config import KV_PATH
 from src.engine.database.database_manager import DatabaseManager
 
 Builder.load_file(str(KV_PATH / "identities.kv"))
@@ -69,12 +69,11 @@ class ManageIdentitiesView(BoxLayout):
 
         app = App.get_running_app()
         home = app.root.get_screen("home")
-        db_name = home.view.ids.db_selector.text
-        db_path = DB.get(db_name)
+        database_id = getattr(home, "database_id", None) or DatabaseManager.selected_database_id()
 
         def worker():
             try:
-                database = DatabaseManager.delete(name, db_path=db_path)
+                database = DatabaseManager.delete(name, database_id=database_id)
                 result = (database, None)
             except Exception as exc:
                 result = (None, exc)
