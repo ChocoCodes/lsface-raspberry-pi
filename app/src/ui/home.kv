@@ -1,5 +1,7 @@
 #:kivy 2.3.1
 #:import ICONS_PATH src.config.config.ICONS_PATH
+#:import CAMERA_NAMES src.config.config.CAMERA_NAMES
+#:import DATABASE_NAMES src.config.config.DATABASE_NAMES
 
 <ActionCard@ButtonBehavior+BoxLayout>:
     orientation: 'vertical'
@@ -172,7 +174,7 @@
 
         BoxLayout:
             size_hint_x: None
-            width: '424dp'
+            width: '640dp'
             spacing: '12dp'
 
             BoxLayout:
@@ -195,9 +197,33 @@
 
                 HeaderSpinner:
                     id: camera_selector
-                    text: 'Camera 0 (Built-in)'
-                    values: ['Camera 0 (Built-in)', 'Camera 1 (USB Webcam)']
+                    text: 'Default PC Camera'
+                    values: CAMERA_NAMES
                     on_text: root.on_camera_changed(self.text)
+
+            BoxLayout:
+                orientation: 'vertical'
+                size_hint_x: None
+                size_hint_y: None
+                width: '188dp'
+                height: '64dp'
+                spacing: '4dp'
+                pos_hint: {'center_y': 0.5}
+
+                Label:
+                    text: 'Database'
+                    size_hint_y: None
+                    height: '18dp'
+                    font_size: '12sp'
+                    color: (0.66, 0.72, 0.80, 1)
+                    halign: 'left'
+                    text_size: self.size
+
+                HeaderSpinner:
+                    id: db_selector
+                    text: 'La Salle Database'
+                    values: DATABASE_NAMES
+                    on_text: root.on_database_changed(self.text)
 
             BoxLayout:
                 orientation: 'vertical'

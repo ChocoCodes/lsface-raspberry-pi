@@ -22,8 +22,8 @@ def run_kivy(options) -> int:
     from kivy.core.window import Window
     from kivy.uix.screenmanager import FadeTransition, ScreenManager
 
-    from src.views.database import DatabaseScreen
     from src.views.home import HomeScreen
+    from src.views.identities import ManageIdentitiesScreen
     from src.views.pose import PoseScreen
     from src.views.recognition import RecognitionScreen
     from src.views.voice_recognition import VoiceRecognitionScreen
@@ -37,7 +37,7 @@ def run_kivy(options) -> int:
             Window.size = (1280, 720)
             manager = ScreenManager(transition=FadeTransition(duration=0.15))
             manager.add_widget(HomeScreen(name="home"))
-            manager.add_widget(DatabaseScreen(name="database"))
+            manager.add_widget(ManageIdentitiesScreen(name="database"))
             manager.add_widget(PoseScreen(name="pose_scan", mode="scan"))
             manager.add_widget(PoseScreen(name="pose_setup", mode="setup"))
             manager.add_widget(RecognitionScreen(name="recognition"))

@@ -16,5 +16,7 @@ pywin32==312
 requests==2.34.2
 urllib3==2.7.0
 
-# # Note: For the Raspberry Pi, you will also need the camera library:
+# Raspberry Pi only; install through the platform package manager when using
+# the Raspberry Pi camera option.
 # picamera2
+

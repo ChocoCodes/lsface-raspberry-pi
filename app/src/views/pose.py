@@ -31,6 +31,7 @@ class PoseScreen(Screen):
     """One camera screen used for participant scanning and operator setup."""
 
     camera_index = NumericProperty(0)
+    camera_mode = StringProperty("Default PC Camera")
     mode = StringProperty("scan")
     phase = StringProperty("loading")
     instruction_text = StringProperty("Preparing camera…")
@@ -100,9 +101,10 @@ class PoseScreen(Screen):
         self._refresh_text()
 
     def _open_camera(self) -> bool:
-        options = App.get_running_app().pose_options
+        options = getattr(App.get_running_app(), "pose_options", None)
+        use_picamera = bool(getattr(options, "picamera2", False)) or self.camera_mode == "Raspberry Pi Camera"
         try:
-            if options.picamera2:
+            if use_picamera:
                 from picamera2 import Picamera2
 
                 self.picamera = Picamera2()
@@ -125,7 +127,8 @@ class PoseScreen(Screen):
 
     def _read_frame(self):
         if self.picamera is not None:
-            return self.picamera.capture_array("main")
+            frame_rgb = self.picamera.capture_array("main")
+            return cv.cvtColor(frame_rgb, cv.COLOR_RGB2BGR)
         if self.capture is None:
             return None
         ok, frame = self.capture.read()
@@ -228,6 +231,7 @@ class PoseScreen(Screen):
         if self.phase == "setup":
             target = self.manager.get_screen("pose_setup")
             target.camera_index = self.camera_index
+            target.camera_mode = self.camera_mode
             self.manager.current = "pose_setup"
             return
         if self.phase == "complete":

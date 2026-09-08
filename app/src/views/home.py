@@ -5,13 +5,13 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.screenmanager import Screen
 from kivy.lang import Builder
 from kivy.properties import StringProperty
-from src.config.config import KV_PATH
+from src.config.config import DB, KV_PATH
+from src.engine.database.database_manager import DatabaseManager
 
 from src.pose_detection.flow import pnp_profile_problem
 from src.pose_detection.head_pose import load_config
 
 Builder.load_file(str(KV_PATH / 'home.kv'))
-
 
 class HomeScreenView(BoxLayout):
     pose_status = StringProperty("Checking device setup…")
@@ -24,17 +24,18 @@ class HomeScreenView(BoxLayout):
 
     def on_database_changed(self, db_name):
         print(f"[EVENT] Selected Database: {db_name}")
+        self.parent.load_database(db_name)
 
     def open_add_identity(self):
         app = App.get_running_app()
         pose_screen = app.root.get_screen("pose_scan")
-        pose_screen.camera_index = self._selected_camera_index()
+        pose_screen.camera_mode = self.ids.camera_selector.text
         app.root.current = "pose_scan"
 
     def open_recognition(self):
         app = App.get_running_app()
         recognition_screen = app.root.get_screen("recognition")
-        recognition_screen.camera_index = self._selected_camera_index()
+        recognition_screen.camera_mode = self.ids.camera_selector.text
         app.root.current = "recognition"
 
     def open_view_identities(self):
@@ -43,7 +44,7 @@ class HomeScreenView(BoxLayout):
     def open_pose_setup(self):
         app = App.get_running_app()
         pose_screen = app.root.get_screen("pose_setup")
-        pose_screen.camera_index = self._selected_camera_index()
+        pose_screen.camera_mode = self.ids.camera_selector.text
         app.root.current = "pose_setup"
 
     def refresh_pose_status(self):
@@ -56,13 +57,6 @@ class HomeScreenView(BoxLayout):
         except Exception:
             self.pose_status = "SETUP REQUIRED"
 
-    def _selected_camera_index(self) -> int:
-        """Parse the Spinner text ('Camera 0 (Built-in)') into a cv index."""
-        text = self.ids.camera_selector.text
-        for token in text.split():
-            if token.isdigit():
-                return int(token)
-        return 0
 
 
 class HomeScreen(Screen):
@@ -73,6 +67,18 @@ class HomeScreen(Screen):
         super().__init__(**kwargs)
         self.view = HomeScreenView()
         self.add_widget(self.view)
+        self.feature_db = None
+        self.load_database("La Salle Database")
 
     def on_pre_enter(self, *_args):
         self.view.refresh_pose_status()
+
+    def load_database(self, db_name: str):
+        db_path = DB.get(db_name)
+
+        if db_path is None:
+            print(f"[DATABASE] Unknown database: {db_name}")
+            return
+
+        self.feature_db = DatabaseManager.load(db_path)
+        print(f"Loaded {self.feature_db.get_identity_count()} identities from {db_name}")
