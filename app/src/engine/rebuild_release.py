@@ -21,12 +21,16 @@ from pathlib import Path
 
 import numpy as np
 
-from lbph_config import LBPHDescriptor, make_lbph, resolve_descriptor
+try:
+    from .lbph_config import LBPHDescriptor, make_lbph, resolve_descriptor
+except ImportError:
+    from lbph_config import LBPHDescriptor, make_lbph, resolve_descriptor
 
 
 ROOT = Path(__file__).resolve().parent
-WORKSPACE_ROOT = ROOT
-DEFAULT_DATABASE = ROOT / "db" / "lasalledb.npy"
+APP_ROOT = ROOT.parents[1]
+WORKSPACE_ROOT = APP_ROOT.parent
+DEFAULT_DATABASE = APP_ROOT / "db" / "lasalledb.npy"
 DEFAULT_OUTPUT_ROOT = ROOT / "enrollment"
 
 
@@ -77,7 +81,11 @@ def _validate_record(label: str, tile: object, feature: object) -> tuple[np.ndar
 
 
 def load_records(
-    database: Path, *, samples_per_identity: int = 10, selection_seed: int = 42
+    database: Path,
+    *,
+    samples_per_identity: int = 10,
+    selection_seed: int = 42,
+    allow_fewer: bool = False,
 ) -> tuple[dict[str, list], dict]:
     """Load records and return ``(records, selection_provenance)``."""
 
@@ -116,12 +124,15 @@ def load_records(
             if samples_per_identity == 0:
                 indices = np.arange(available, dtype=np.int64)
             else:
-                if samples_per_identity > available:
+                if samples_per_identity > available and not allow_fewer:
                     raise ValueError(
                         f"Identity {label!r} has {available} rows; cannot select "
                         f"{samples_per_identity}."
                     )
-                indices = rng.choice(available, samples_per_identity, replace=False)
+                if samples_per_identity > available:
+                    indices = np.arange(available, dtype=np.int64)
+                else:
+                    indices = rng.choice(available, samples_per_identity, replace=False)
             selection["indices_by_identity"][str(label)] = [int(index) for index in indices]
 
             for index in indices:
@@ -200,6 +211,7 @@ def build_release(
     descriptor: LBPHDescriptor,
     selection: dict,
     release_name: str | None = None,
+    source_database: Path | None = None,
 ) -> Path:
     output_root.mkdir(parents=True, exist_ok=True)
     release_root = output_root / "releases"
@@ -216,31 +228,42 @@ def build_release(
     status = "candidate_only" if descriptor.descriptor_id == "r3_n8_g6x6" else "paired_baseline"
 
     try:
-        lbph = make_lbph(descriptor)
-        labels = np.asarray(records["identity_ids"], dtype=np.int32)
-        faces = [np.asarray(tile, dtype=np.uint8) for tile in records["lbph_faces"]]
-        lbph.train(faces, labels)
-        lbph.save(str(staging / "lbph.yml"))
-        _write_json(staging / "labels.json", labels_map)
+        if names:
+            lbph = make_lbph(descriptor)
+            labels = np.asarray(records["identity_ids"], dtype=np.int32)
+            faces = [np.asarray(tile, dtype=np.uint8) for tile in records["lbph_faces"]]
+            if not faces:
+                raise ValueError("no LBPH samples were selected")
+            lbph.train(faces, labels)
+            lbph.save(str(staging / "lbph.yml"))
 
-        features = np.vstack(records["sface_embeddings"]).astype(np.float32)
-        label_array = np.asarray(records["labels"], dtype=str)
-        gallery = {
-            name: features[label_array == name].mean(axis=0, keepdims=True).astype(np.float32)
-            for name in names
-        }
+            features = np.vstack(records["sface_embeddings"]).astype(np.float32)
+            label_array = np.asarray(records["labels"], dtype=str)
+            gallery = {
+                name: features[label_array == name].mean(axis=0, keepdims=True).astype(np.float32)
+                for name in names
+            }
+        else:
+            gallery = {}
+
+        _write_json(staging / "labels.json", labels_map)
         np.save(staging / "sface_gallery.npy", gallery, allow_pickle=True)
+        # The release owns the exact feature DB that produced its artifacts.
+        # This gives enrollment and deletion an atomic, recoverable source.
+        shutil.copy2(database, staging / "database.npy")
+        manifest_database = Path(source_database or database)
         _write_json(staging / "manifest.json", {
             "created_utc": now(),
             "status": status,
-            "source_database": _portable_source_path(database),
-            "source_format": database.suffix.lower().lstrip("."),
+            "source_database": _portable_source_path(manifest_database),
+            "source_format": manifest_database.suffix.lower().lstrip("."),
             "identities": names,
             "samples": len(records["labels"]),
             "descriptor_id": descriptor.descriptor_id,
             "lbph_descriptor": descriptor.to_dict(),
             "recipe": "Same selected upstream cohort for LBPH and SFace; explicit LBPH constructor",
             "selection": selection,
+            "database_snapshot": "database.npy",
         })
         staging.rename(final)
     except Exception:
@@ -268,8 +291,8 @@ def main() -> int:
         selection_seed=options.selection_seed,
     )
     counts = Counter(records["labels"])
-    if len(counts) < 2:
-        raise RuntimeError("Need at least two identities.")
+    if len(counts) < 1:
+        raise RuntimeError("Need at least one identity.")
     if options.dry_run:
         print(json.dumps({
             "database": _portable_source_path(database),

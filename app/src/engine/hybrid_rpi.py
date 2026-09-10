@@ -139,11 +139,7 @@ class HybridCascade:
             manifest, self.threshold_descriptor, source=str(manifest_path)
         )
 
-        lbph_path = self.artifacts_dir / "lbph.yml"
         labels_path = self.artifacts_dir / "labels.json"
-        self.lbph = make_lbph(self.threshold_descriptor)
-        self.lbph.read(str(lbph_path))
-        validate_loaded_lbph(self.lbph, self.threshold_descriptor, context=str(lbph_path))
         labels = json.loads(labels_path.read_text(encoding="utf-8"))
         self.lbph_labels = {int(identifier): name for name, identifier in labels.items()}
         # Upstream exposes this id -> name mapping as ``labels``.  Keep the
@@ -153,8 +149,18 @@ class HybridCascade:
 
         gallery_path = self.artifacts_dir / "sface_gallery.npy"
         gallery = np.load(gallery_path, allow_pickle=True).item()
-        if not isinstance(gallery, dict) or not gallery:
+        if not isinstance(gallery, dict):
             raise RuntimeError(f"SFace gallery empty or invalid: {gallery_path}")
+        if not gallery:
+            self.lbph = None
+            self.sface_gallery = []
+            self.sface_labels = []
+            return
+
+        lbph_path = self.artifacts_dir / "lbph.yml"
+        self.lbph = make_lbph(self.threshold_descriptor)
+        self.lbph.read(str(lbph_path))
+        validate_loaded_lbph(self.lbph, self.threshold_descriptor, context=str(lbph_path))
         identity_ids = {name: identifier for identifier, name in self.lbph_labels.items()}
         self.sface_gallery = [
             {
@@ -273,19 +279,26 @@ class HybridCascade:
     def _infer_face(self, image_bgr: np.ndarray, row: np.ndarray) -> dict:
         height, width = image_bgr.shape[:2]
         x, y, box_width, box_height = self._bbox(row, width, height)
+        if not self.sface_gallery:
+            return {
+                "status": "rejected",
+                "engine": "none",
+                "reason": "no_identities",
+                "bbox": (x, y, box_width, box_height),
+            }
         gray = cv.cvtColor(image_bgr[y : y + box_height, x : x + box_width], cv.COLOR_BGR2GRAY)
         if gray.size == 0:
             return {"status": "rejected", "engine": "none", "reason": "empty_face_crop", "bbox": (x, y, box_width, box_height)}
         quality_gray = cv.resize(gray, (100, 100), interpolation=cv.INTER_AREA)
-        landmarks = row[5:15] if row.size >= 15 else None
+        landmarks = row[4:14] if row.size >= 14 else None
         quality = compute_quality(
             gray_roi=quality_gray,
             landmarks=landmarks,
             face_px=min(box_width, box_height),
             thresholds=self.quality_thresholds,
         )
-        route = route_after_quality(quality.any_flag, None, self.tau_accept, self.tau_reject)
-        if route == "sface_quality":
+        if quality.any_flag:
+            route = "sface_quality"
             reason = "quality:" + ",".join(quality.active_flags)
             return self._sface_decision(
                 image_bgr, row, bbox=(x, y, box_width, box_height), quality=quality,

@@ -1,0 +1,57 @@
+#:kivy 2.3.1
+
+<DatabaseScreen>:
+    BoxLayout:
+        orientation: 'vertical'
+        padding: ['34dp', '24dp', '34dp', '26dp']
+        spacing: '18dp'
+        canvas.before:
+            Color:
+                rgba: (0.045, 0.063, 0.094, 1)
+            Rectangle:
+                pos: self.pos
+                size: self.size
+
+        BoxLayout:
+            size_hint_y: None
+            height: '42dp'
+
+            Button:
+                text: '‹  Back'
+                size_hint_x: None
+                width: '100dp'
+                background_normal: ''
+                background_color: (0.12, 0.16, 0.23, 1)
+                color: (0.93, 0.96, 0.98, 1)
+                on_release: root.go_back()
+
+            Label:
+                text: 'VIEW IDENTITIES'
+                font_size: '17sp'
+                bold: True
+                color: (0.93, 0.96, 0.98, 1)
+                halign: 'left'
+                text_size: self.size
+
+        Widget:
+
+        Label:
+            text: 'No local identities yet'
+            size_hint_y: None
+            height: '44dp'
+            font_size: '28sp'
+            bold: True
+            color: (0.93, 0.96, 0.98, 1)
+            halign: 'center'
+            text_size: self.size
+
+        Label:
+            text: 'This version does not create or store identity records.'
+            size_hint_y: None
+            height: '30dp'
+            font_size: '14sp'
+            color: (0.66, 0.72, 0.80, 1)
+            halign: 'center'
+            text_size: self.size
+
+        Widget:

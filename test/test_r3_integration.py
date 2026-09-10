@@ -11,6 +11,7 @@ import numpy as np
 from hybrid import HybridCascade as LegacyHybridCascade
 from hybrid_rpi import HybridCascade, route_after_quality
 from quality import QualityThresholds, compute_quality
+from head_pose import HeadPoseTracker
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -53,6 +54,14 @@ class R3IntegrationTests(unittest.TestCase):
         module = load_pc_detect()
         self.assertEqual(module.normalize_results({"status": "accepted"}), [{"status": "accepted"}])
         self.assertEqual(module.normalize_results([]), [])
+
+    def test_head_pose_directions(self) -> None:
+        tracker = HeadPoseTracker(ROOT / "models" / "face_detection_yunet_2023mar.onnx")
+        tracker._calibrated = True
+        self.assertEqual(tracker._classify(yaw=0.0, pitch=10.0, roll=0.0, pitch_proxy=0.0), "UP")
+        self.assertEqual(tracker._classify(yaw=0.0, pitch=-10.0, roll=0.0, pitch_proxy=0.0), "DOWN")
+        self.assertEqual(tracker._classify(yaw=15.0, pitch=0.0, roll=0.0, pitch_proxy=0.0), "LEFT")
+        self.assertEqual(tracker._classify(yaw=-15.0, pitch=0.0, roll=0.0, pitch_proxy=0.0), "RIGHT")
 
 
 if __name__ == "__main__":
