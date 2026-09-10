@@ -16,6 +16,7 @@ from kivy.properties import ListProperty, NumericProperty, StringProperty
 from kivy.uix.screenmanager import Screen
 
 from src.config.config import KV_PATH
+from src.engine.camera.factory import camera_factory
 
 from src.pose_detection.flow import (
     LABELS,
@@ -33,13 +34,11 @@ Builder.load_file(str(KV_PATH / "pose.kv"))
 APP_ROOT = Path(__file__).resolve().parents[2]
 POSE_PROFILE = APP_ROOT / "config" / "head_pose.local.json"
 POSE_TEMPLATE = APP_ROOT / "config" / "head_pose.json"
-POSE_SIZE = (640, 480)
 
 
 class PoseScreen(Screen):
     """One camera screen used for participant scanning and operator setup."""
 
-    camera_index = NumericProperty(0)
     camera_mode = StringProperty("Default PC Camera")
     mode = StringProperty("scan")
     phase = StringProperty("loading")
@@ -53,8 +52,7 @@ class PoseScreen(Screen):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.capture = None
-        self.picamera = None
+        self.camera = None
         self.tracker = None
         self.flow = None
         self.pose = None
@@ -126,40 +124,31 @@ class PoseScreen(Screen):
 
     def _open_camera(self) -> bool:
         options = getattr(App.get_running_app(), "pose_options", None)
-        use_picamera = bool(getattr(options, "picamera2", False)) or self.camera_mode == "Raspberry Pi Camera"
+        camera_mode = self.camera_mode
+        if getattr(options, "picamera2", False):
+            camera_mode = "Raspberry Pi Camera"
         try:
-            if use_picamera:
-                from picamera2 import Picamera2
-
-                self.picamera = Picamera2()
-                self.picamera.configure(
-                    self.picamera.create_video_configuration(main={"size": POSE_SIZE, "format": "RGB888"})
-                )
-                self.picamera.start()
-                return True
-            self.capture = cv.VideoCapture(int(self.camera_index))
-            self.capture.set(cv.CAP_PROP_FRAME_WIDTH, POSE_SIZE[0])
-            self.capture.set(cv.CAP_PROP_FRAME_HEIGHT, POSE_SIZE[1])
-            if self.capture.isOpened():
-                return True
-            self.capture.release()
-            self.capture = None
-            self._show_error(f"Could not open camera {self.camera_index}.")
+            self.camera = camera_factory(camera_mode)
+            self.camera.start()
+            return True
         except Exception as exc:
-            self._show_error(f"Could not open camera: {exc}")
+            if self.camera is not None:
+                self.camera.stop()
+                self.camera = None
+            self._show_error(f"Could not start {camera_mode}: {exc}")
         return False
 
     def _read_frame(self):
-        if self.picamera is not None:
-            frame_rgb = self.picamera.capture_array("main")
-            return cv.cvtColor(frame_rgb, cv.COLOR_RGB2BGR)
-        if self.capture is None:
+        if self.camera is None:
             return None
-        ok, frame = self.capture.read()
-        return frame if ok else None
+        return self.camera.read()
 
     def update(self, _dt):
-        frame = self._read_frame()
+        try:
+            frame = self._read_frame()
+        except Exception as exc:
+            self._show_error(f"Camera stopped delivering frames: {exc}")
+            return
         if frame is None:
             self._show_error("Camera stopped delivering frames.")
             return
@@ -265,7 +254,6 @@ class PoseScreen(Screen):
             return
         if self.phase == "setup":
             target = self.manager.get_screen("pose_setup")
-            target.camera_index = self.camera_index
             target.camera_mode = self.camera_mode
             self.manager.current = "pose_setup"
             return
@@ -299,13 +287,9 @@ class PoseScreen(Screen):
         if self._update_event is not None:
             self._update_event.cancel()
             self._update_event = None
-        if self.capture is not None:
-            self.capture.release()
-            self.capture = None
-        if self.picamera is not None:
-            self.picamera.stop()
-            self.picamera.close()
-            self.picamera = None
+        if self.camera is not None:
+            self.camera.stop()
+            self.camera = None
 
     def _shutdown(self):
         self._stop_camera()

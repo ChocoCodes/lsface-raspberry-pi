@@ -12,8 +12,7 @@ APP_SRC = REPO_ROOT / "app" / "src"
 if str(APP_SRC) not in sys.path:
     sys.path.insert(0, str(APP_SRC))
 
-import cv2 as cv
-
+from engine.camera.webcam import WebCamera
 from pose_detection.flow import GuidedPoseCalibration, GuidedPoseFlow, format_instruction, pnp_profile_problem
 from pose_detection.head_pose import HeadPoseTracker, POSE_CONFIG_DIR, load_config
 
@@ -51,27 +50,21 @@ def main() -> int:
             print(f"[setup required] {problem}\nRun: python pose-detection/pose_cli.py --calibrate --camera {options.camera}")
             return 2
     flow = GuidedPoseCalibration(tracker) if options.calibrate else GuidedPoseFlow(tracker)
-    cap = camera = None
+    camera = None
     previous, last_pose = None, -float("inf")
     profile_checked = options.calibrate
     try:
         if options.picamera2:
-            from picamera2 import Picamera2
+            from engine.camera.picam import PiCamera
 
-            camera = Picamera2()
-            camera.configure(camera.create_video_configuration(main={"size": (options.width, options.height), "format": "RGB888"}))
-            camera.start()
+            camera = PiCamera(res=(options.width, options.height))
         else:
-            cap = cv.VideoCapture(options.camera)
-            cap.set(cv.CAP_PROP_FRAME_WIDTH, options.width)
-            cap.set(cv.CAP_PROP_FRAME_HEIGHT, options.height)
-            if not cap.isOpened():
-                print(f"[camera error] Could not open camera {options.camera}.")
-                return 3
+            camera = WebCamera(options.camera, res=(options.width, options.height))
+        camera.start()
         flow.start(time.monotonic())
         print("[operator setup]" if options.calibrate else "[add identity pose scan]")
         while True:
-            frame = camera.capture_array("main") if camera is not None else cap.read()[1]
+            frame = camera.read()
             if frame is None:
                 print("[camera error] Camera stopped delivering frames.")
                 return 3
@@ -112,11 +105,8 @@ def main() -> int:
         return 3
     finally:
         flow.close()
-        if cap is not None:
-            cap.release()
         if camera is not None:
             camera.stop()
-            camera.close()
 
 
 if __name__ == "__main__":

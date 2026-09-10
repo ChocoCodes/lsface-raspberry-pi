@@ -285,6 +285,9 @@ class VoiceRecognitionScreen(Screen):
         self.continue_enabled = False
 
         try:
+            home = self.manager.get_screen("home")
+            home.feature_db = published
+            home.database_id = self.database_id
             recognition = self.manager.get_screen("recognition")
             recognition.configure_session(
                 database_id=self.database_id,

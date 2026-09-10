@@ -1,7 +1,6 @@
 import time
-import cv2 as cv
-import numpy as np 
-from picamera2 import Picamera2 
+import numpy as np
+from picamera2 import Picamera2
 from .camera import Camera
 
 class PiCamera(Camera):
@@ -38,19 +37,19 @@ class PiCamera(Camera):
         return self
 
     def read(self) -> np.ndarray:
-        """Captures a frame and converts RGB to BGR for OpenCV."""
-        frame_rgb = self.picam2.capture_array()
-
-        return cv.cvtColor(frame_rgb, cv.COLOR_RGB2BGR)
+        """Captures a BGR frame matching the shared Camera contract."""
+        return self.picam2.capture_array()
     
     def stop(self) -> None:
         """Stops the camera stream and releases hardware resources."""
         print("[PiCamera] Closing camera stream...")
-        self.picam2.stop()
+        try:
+            self.picam2.stop()
+        finally:
+            self.picam2.close()
 
     def __enter__(self) -> "PiCamera":
         return self.start()
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         self.stop()
-    
