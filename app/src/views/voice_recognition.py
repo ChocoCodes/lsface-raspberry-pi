@@ -32,6 +32,7 @@ class VoiceRecognitionScreen(Screen):
     state = StringProperty("idle")
     session_id = StringProperty("")
     database_id = StringProperty("")
+    camera_mode = StringProperty("Default PC Camera")
     enrollment_progress = NumericProperty(0.0)
     audio_level = NumericProperty(0.0)
     continue_enabled = BooleanProperty(False)
@@ -67,6 +68,7 @@ class VoiceRecognitionScreen(Screen):
         database_id: str,
         session_id: str | None = None,
         initial_name: str = "",
+        camera_mode: str = "Default PC Camera",
     ) -> None:
         """Start non-mutating preparation before showing the name gate."""
 
@@ -76,6 +78,7 @@ class VoiceRecognitionScreen(Screen):
         self._active_session_id = token
         self.session_id = token
         self.database_id = str(database_id or "").strip()
+        self.camera_mode = camera_mode
         self._frames = {
             str(label): np.array(frame, copy=True) for label, frame in frames.items()
         }
@@ -289,6 +292,7 @@ class VoiceRecognitionScreen(Screen):
             home.feature_db = published
             home.database_id = self.database_id
             recognition = self.manager.get_screen("recognition")
+            recognition.camera_mode = self.camera_mode
             recognition.configure_session(
                 database_id=self.database_id,
                 expected_identity_name=name,
@@ -308,6 +312,7 @@ class VoiceRecognitionScreen(Screen):
             self._frames,
             database_id=self.database_id,
             initial_name=self.transcript,
+            camera_mode=self.camera_mode,
         )
 
     def _parsed_name(self) -> str:

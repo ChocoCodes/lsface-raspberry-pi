@@ -167,6 +167,7 @@ class RecognitionScreen(Screen):
             self.camera = App.get_running_app().camera_manager.acquire(camera_mode)
         except Exception as e:
             self.status_text = f"[CameraError] Could not start {camera_mode}: {e}"
+            LOGGER.exception("Could not acquire camera %s", camera_mode)
             self.camera = None
             return 
 
@@ -183,6 +184,7 @@ class RecognitionScreen(Screen):
             frame_bgr = self.camera.read()
         except Exception as e:
             self.status_text = f"[CameraError] Failed to read frame: {e}"
+            LOGGER.exception("Failed to read recognition camera frame")
             return
 
         infer_start = time.time()

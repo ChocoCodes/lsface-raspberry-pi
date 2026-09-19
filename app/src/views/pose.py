@@ -328,6 +328,7 @@ class PoseScreen(Screen):
             database_id=database_id,
             session_id=uuid4().hex,
             initial_name=self.identity_name,
+            camera_mode=self.camera_mode,
         )
         self.manager.current = "voice_recognition"
 
