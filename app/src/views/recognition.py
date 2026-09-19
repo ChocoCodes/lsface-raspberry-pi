@@ -2,13 +2,11 @@ import inspect
 import time
 import cv2 as cv
 
-from kivy.animation import Animation
 from kivy.app import App
 from kivy.clock import Clock
-from kivy.core.window import Window
 from kivy.graphics.texture import Texture
 from kivy.lang import Builder
-from kivy.properties import BooleanProperty, NumericProperty, StringProperty
+from kivy.properties import StringProperty
 from kivy.uix.screenmanager import Screen
 
 from src.config.config import KV_PATH
@@ -34,10 +32,6 @@ class RecognitionScreen(Screen):
     database_id = StringProperty("")
     expected_identity_name = StringProperty("")
     session_id = StringProperty("")
-    greeting_text = StringProperty("")
-    greeting_opacity = NumericProperty(0.0)
-    greeting_visible = BooleanProperty(False)
-    greeted = BooleanProperty(False)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -48,15 +42,10 @@ class RecognitionScreen(Screen):
         self.frame_count = 0
         self._update_event = None
         self._initialize_event = None
-        self._greeting_animation = None
         self._session_generation = 0
         self._active_session_id = None
         self._active_database_id = ""
-        self._active_expected_name = ""
-        self._expected_match_streak = 0
-        self._last_frame_signature = None
         self._database_route_note = ""
-        self._keys_bound = False
 
     def configure_session(self, database_id, expected_identity_name, session_id=None):
         """Set voice-enrollment context before entering live recognition."""
@@ -67,34 +56,15 @@ class RecognitionScreen(Screen):
         )
         self.session_id = "" if session_id is None else str(session_id).strip()
 
-        # Invalidate any animation or streak from a previous voice session.
+        # Invalidate the previous recognition session.
         self._session_generation += 1
         self._active_session_id = None
-        self._cancel_greeting()
-        self._reset_match_state()
 
     def _activate_session(self):
         self._session_generation += 1
         self._active_session_id = self.session_id or f"recognition-{self._session_generation}"
         self._active_database_id = self.database_id
-        self._active_expected_name = self.expected_identity_name
         self._database_route_note = ""
-        self._cancel_greeting()
-        self._reset_match_state()
-
-    def _reset_match_state(self):
-        self._expected_match_streak = 0
-        self._last_frame_signature = None
-
-    def _cancel_greeting(self):
-        animation = self._greeting_animation
-        self._greeting_animation = None
-        if animation is not None:
-            Animation.cancel_all(self, "greeting_opacity")
-        self.greeted = False
-        self.greeting_opacity = 0.0
-        self.greeting_visible = False
-        self.greeting_text = ""
 
     def _build_cascade_for_session(self):
         """Build the selected cascade, forwarding database routing when supported."""
@@ -145,17 +115,10 @@ class RecognitionScreen(Screen):
     # --- Screen lifecycle ---------------------------------------------
     def on_enter(self, *args):
         self._activate_session()
-        if not self._keys_bound:
-            Window.bind(on_key_down=self._on_key_down)
-            self._keys_bound = True
         # Defer heavy init so the screen transition isn't blocked.
         self._initialize_event = Clock.schedule_once(self._initialize, 0)
 
     def on_leave(self, *args):
-        if self._keys_bound:
-            Window.unbind(on_key_down=self._on_key_down)
-            self._keys_bound = False
-
         if self._initialize_event is not None:
             self._initialize_event.cancel()
             self._initialize_event = None
@@ -172,23 +135,12 @@ class RecognitionScreen(Screen):
         self._session_generation += 1
         self._active_session_id = None
         self._active_database_id = ""
-        self._active_expected_name = ""
-        self._cancel_greeting()
-        self._reset_match_state()
         self.expected_identity_name = ""
         self.session_id = ""
         self.status_text = "Initializing..."
 
     def go_back(self):
         self.manager.current = "home"
-
-    def _on_key_down(self, _window, key, _scancode, codepoint, _modifiers):
-        if not self.greeting_visible:
-            return False
-        if key in (13, 27, 32) or codepoint in ("\r", "\n", " "):
-            self.go_back()
-            return True
-        return False
 
     # --- Setup -----------------------------------------------------------
     def _initialize(self, _dt):
@@ -237,7 +189,6 @@ class RecognitionScreen(Screen):
         results = normalize_results(self.cascade.infer(frame_bgr))
         latency = (time.time() - infer_start) * 1000.0  # ms
 
-        self._update_greeting_match(results, frame_bgr)
 
         elapsed = time.time() - start_time
         fps = 1.0 / elapsed if elapsed > 0.0 else 0.0
@@ -252,83 +203,21 @@ class RecognitionScreen(Screen):
                 else:
                     color = (0, 0, 255)
                 cv.rectangle(frame_bgr, (x, y), (x + w, y + h), color, 2)
-            draw_overlay(frame_bgr, result, fps, latency)
+            draw_overlay(frame_bgr, result, fps, latency, greeting=True)
 
         if results and self.frame_count % 10 == 0:
             LOGGER.info(f"Results: {results} | Latency: {latency:.1f}ms | FPS: {fps:.1f}")
 
         if results:
             statuses = ", ".join(r.get("status", "unknown") for r in results)
-            self.status_text = f"FPS: {fps:4.1f} | Match: {statuses} | Latency: {latency:5.1f}ms"
+            self.status_text = (
+                f"FPS: {fps:4.1f} | Match: {statuses} | Latency: {latency:5.1f}ms"
+            )
         else:
             self.status_text = f"FPS: {fps:4.1f} | Searching for faces..."
 
         self.frame_count += 1
         self._display_frame(frame_bgr)
-
-    @staticmethod
-    def _frame_signature(frame_bgr):
-        thumbnail = cv.resize(frame_bgr, (32, 18), interpolation=cv.INTER_AREA)
-        return thumbnail.tobytes()
-
-    def _update_greeting_match(self, results, frame_bgr):
-        """Require three distinct frames with one accepted expected identity."""
-
-        if self.greeted or not self._active_expected_name:
-            return
-
-        signature = self._frame_signature(frame_bgr)
-        if signature == self._last_frame_signature:
-            self._expected_match_streak = 0
-            return
-        self._last_frame_signature = signature
-
-        if len(results) != 1:
-            self._expected_match_streak = 0
-            return
-
-        result = results[0]
-        result_name = result.get("name")
-        accepted = result.get("status") == "accepted"
-        expected = self._active_expected_name
-        if (
-            not accepted
-            or not isinstance(result_name, str)
-            or result_name.strip().casefold() != expected.casefold()
-        ):
-            self._expected_match_streak = 0
-            return
-
-        self._expected_match_streak += 1
-        if self._expected_match_streak >= 3:
-            self._show_greeting(expected, self._session_generation)
-
-    def _show_greeting(self, name, generation):
-        if (
-            self.greeted
-            or generation != self._session_generation
-            or self._active_session_id is None
-        ):
-            return
-
-        self.greeted = True
-        self._expected_match_streak = 0
-        self.greeting_text = f"Hello, {name}"
-        self.greeting_visible = True
-        self.greeting_opacity = 0.0
-
-        animation = Animation(greeting_opacity=1.0, duration=0.45, t="out_quad")
-        self._greeting_animation = animation
-
-        def on_complete(completed_animation, _widget):
-            if (
-                generation == self._session_generation
-                and completed_animation is self._greeting_animation
-            ):
-                self._greeting_animation = None
-
-        animation.bind(on_complete=on_complete)
-        animation.start(self)
 
     def _display_frame(self, frame_bgr):
         buf = cv.flip(frame_bgr, 0).tobytes()

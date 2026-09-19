@@ -128,7 +128,9 @@ def draw_overlay(
     frame: np.ndarray,
     result: dict,
     fps: float,
-    latency: float
+    latency: float,
+    *,
+    greeting: bool = False,
 ) -> None:
     """Draw per-face identity, FPS, and latency above the bounding box."""
 
@@ -143,6 +145,8 @@ def draw_overlay(
 
     # Determine displayed identity/status
     if status == "accepted":
+        if greeting and isinstance(name, str) and name.strip():
+            name = f"Hello, {name.strip().split()[0]}"
         display_name = name
         if result.get("engine") == "lbph":
             display_name = f"{name} [LBPH]"

@@ -48,8 +48,8 @@
 
     BoxLayout:
         orientation: 'vertical'
-        padding: ['34dp', '24dp', '34dp', '26dp']
-        spacing: '14dp'
+        padding: [dp(20), dp(16), dp(20), dp(16)] if root.mode == 'scan' else [dp(34), dp(24), dp(34), dp(26)]
+        spacing: dp(8) if root.mode == 'scan' else dp(14)
 
         BoxLayout:
             size_hint_y: None
@@ -85,7 +85,7 @@
 
         BoxLayout:
             orientation: 'vertical'
-            padding: ['16dp', '16dp', '16dp', '16dp']
+            padding: [dp(8)] * 4 if root.mode == 'scan' else [dp(16)] * 4
             spacing: '8dp'
             canvas.before:
                 Color:

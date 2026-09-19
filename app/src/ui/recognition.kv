@@ -5,8 +5,8 @@
         BoxLayout:
             size_hint: 1, 1
             orientation: 'vertical'
-            padding: ['34dp', '24dp', '34dp', '26dp']
-            spacing: '14dp'
+            padding: ['12dp', '10dp', '12dp', '10dp']
+            spacing: '8dp'
             canvas.before:
                 Color:
                     rgba: (0.045, 0.063, 0.094, 1)
@@ -46,7 +46,7 @@
                     text_size: self.size
 
             BoxLayout:
-                padding: ['16dp', '16dp', '16dp', '16dp']
+                padding: ['4dp', '4dp', '4dp', '4dp']
                 canvas.before:
                     Color:
                         rgba: (0.09, 0.12, 0.17, 1)
@@ -66,28 +66,6 @@
                 height: '28dp'
                 font_size: '13sp'
                 color: (0.66, 0.72, 0.80, 1)
-                halign: 'center'
-                valign: 'middle'
-                text_size: self.size
-
-        FloatLayout:
-            id: greeting_overlay
-            size_hint: 1, 1
-            opacity: root.greeting_opacity
-            canvas.before:
-                Color:
-                    rgba: (0, 0, 0, 1)
-                Rectangle:
-                    pos: self.pos
-                    size: self.size
-
-            Label:
-                text: root.greeting_text
-                size_hint: 0.9, 0.2
-                pos_hint: {'center_x': 0.5, 'center_y': 0.5}
-                color: (1, 1, 1, 1)
-                font_size: '44sp'
-                bold: True
                 halign: 'center'
                 valign: 'middle'
                 text_size: self.size

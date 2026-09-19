@@ -35,6 +35,8 @@ def run_kivy(options) -> int:
         def build(self):
             self.camera_manager = CameraManager()
             self.pose_options = options
+            Window.fullscreen = False
+            Window.position = 'auto'
             Window.clearcolor = (0.045, 0.063, 0.094, 1)
             Window.size = (1280, 720)
             manager = ScreenManager(transition=FadeTransition(duration=0.15))
