@@ -12,7 +12,6 @@ from kivy.properties import BooleanProperty, NumericProperty, StringProperty
 from kivy.uix.screenmanager import Screen
 
 from src.config.config import KV_PATH
-from src.engine.camera.factory import camera_factory
 from src.engine.build_cascade import (
     CAM_INDEX as DEFAULT_CAM_INDEX,
     RES_DEFAULT,
@@ -165,9 +164,8 @@ class RecognitionScreen(Screen):
             self._update_event.cancel()
             self._update_event = None
 
-        if self.camera is not None:
-            self.camera.stop()
-            self.camera = None
+        # Camera Manager keeps the camera for the next screen
+        self.camera = None
 
         self.cascade = None
         self.frame_count = 0
@@ -214,8 +212,7 @@ class RecognitionScreen(Screen):
             camera_mode = "Raspberry Pi Camera"
 
         try:
-            self.camera = camera_factory(camera_mode)
-            self.camera.start()
+            self.camera = App.get_running_app().camera_manager.acquire(camera_mode)
         except Exception as e:
             self.status_text = f"[CameraError] Could not start {camera_mode}: {e}"
             self.camera = None

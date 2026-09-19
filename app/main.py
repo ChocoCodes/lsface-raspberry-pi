@@ -1,6 +1,7 @@
 """LS-Face Kivy application entry point."""
 from __future__ import annotations
 
+from src.engine.camera.manager import CameraManager
 import argparse
 from pathlib import Path
 import sys
@@ -32,6 +33,7 @@ def run_kivy(options) -> int:
         title = "LS-Face"
 
         def build(self):
+            self.camera_manager = CameraManager()
             self.pose_options = options
             Window.clearcolor = (0.045, 0.063, 0.094, 1)
             Window.size = (1280, 720)
@@ -44,6 +46,9 @@ def run_kivy(options) -> int:
             manager.add_widget(VoiceRecognitionScreen(name="voice_recognition"))
             manager.current = "home"
             return manager
+
+        def on_stop(self):
+            self.camera_manager.close()
 
     LSFaceApp().run()
     return 0

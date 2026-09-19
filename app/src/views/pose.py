@@ -16,7 +16,6 @@ from kivy.properties import ListProperty, NumericProperty, StringProperty
 from kivy.uix.screenmanager import Screen
 
 from src.config.config import KV_PATH
-from src.engine.camera.factory import camera_factory
 
 from src.pose_detection.flow import (
     LABELS,
@@ -123,20 +122,20 @@ class PoseScreen(Screen):
         self._refresh_text()
 
     def _open_camera(self) -> bool:
-        options = getattr(App.get_running_app(), "pose_options", None)
+        app = App.get_running_app()
+        options = getattr(app, "pose_options", None)
         camera_mode = self.camera_mode
+
         if getattr(options, "picamera2", False):
             camera_mode = "Raspberry Pi Camera"
+
         try:
-            self.camera = camera_factory(camera_mode)
-            self.camera.start()
+            self.camera = app.camera_manager.acquire(camera_mode)
             return True
         except Exception as exc:
-            if self.camera is not None:
-                self.camera.stop()
-                self.camera = None
+            self.camera = None
             self._show_error(f"Could not start {camera_mode}: {exc}")
-        return False
+            return False
 
     def _read_frame(self):
         if self.camera is None:
@@ -287,9 +286,8 @@ class PoseScreen(Screen):
         if self._update_event is not None:
             self._update_event.cancel()
             self._update_event = None
-        if self.camera is not None:
-            self.camera.stop()
-            self.camera = None
+
+        self.camera = None
 
     def _shutdown(self):
         self._stop_camera()
