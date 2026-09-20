@@ -22,8 +22,8 @@ INSTRUCTIONS = {
     "DOWN": "Lower your chin and look DOWN",
 }
 CALIBRATION_KEYS = {"f": "FRONT", "l": "LEFT", "r": "RIGHT", "u": "UP", "d": "DOWN"}
-REPO_ROOT = Path(__file__).resolve().parents[3]
-SETUP_LOG_DIR = REPO_ROOT / "logs" / "head_pose" / "device_setup"
+APP_ROOT = Path(__file__).resolve().parents[2]
+SETUP_LOG_DIR = APP_ROOT / "logs" / "head_pose" / "device_setup"
 
 
 def pnp_profile_problem(

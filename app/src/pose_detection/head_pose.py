@@ -19,7 +19,7 @@ import cv2 as cv
 import numpy as np
 
 APP_ROOT = Path(__file__).resolve().parents[2]
-ROOT = APP_ROOT.parent
+ROOT = APP_ROOT / 'src'
 POSE_CONFIG_DIR = APP_ROOT / "config"
 LABELS = ("FRONT", "LEFT", "RIGHT", "UP", "DOWN")
 MODEL_POINTS = np.array([[-30,-30,-30], [30,-30,-30], [0,0,0],
