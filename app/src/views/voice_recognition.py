@@ -318,11 +318,13 @@ class VoiceRecognitionScreen(Screen):
     def _parsed_name(self) -> str:
         transcript = " ".join(self.transcript.split())
         transcript = re.sub(
-            r"^(?:my\s+name\s+is|i\s+am|i['’]m|this\s+is)\s+",
+            r"^(?:my\s+name\s+is|i\s+am|i['’]m|this\s+is|it['’]s|its|hello\s+my\s+name\s+is|hi\s+my\s+name\s+is)\s+",
             "",
             transcript,
             flags=re.IGNORECASE,
         )
+        transcript = re.sub(r"^[\s.,!?;:\"']+", "", transcript)
+        transcript = re.sub(r"[\s.,!?;:\"']+$", "", transcript).strip()
         return FeatureDB.normalize_name(transcript)
 
     def _set_transcript(self, value: str) -> None:
