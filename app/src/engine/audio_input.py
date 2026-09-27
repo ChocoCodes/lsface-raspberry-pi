@@ -40,11 +40,22 @@ except (ImportError, ValueError):
             clean_transcribed_name,
         )
 
+try:
+    from .remote_audio_server import RemoteAudioReceiver
+except (ImportError, ValueError):
+    try:
+        from src.engine.remote_audio_server import RemoteAudioReceiver
+    except (ImportError, ValueError):
+        from remote_audio_server import RemoteAudioReceiver
+
 logger = logging.getLogger(__name__)
 
 
 class OptionalAudioInput:
-    """Bounded microphone input with tiered Groq / faster-whisper / manual transcription."""
+    """Bounded microphone input with tiered Groq / faster-whisper / manual transcription,
+
+    supporting local microphone capture and remote laptop voice transmission.
+    """
 
     sample_rate = 16_000
 
@@ -52,6 +63,7 @@ class OptionalAudioInput:
         self,
         transcriber: Optional[HybridSpeechTranscriber] = None,
         model_path: str | Path | None = None,
+        remote_port: Optional[int] = None,
     ) -> None:
         self._sounddevice = None
         self._stream = None
@@ -67,28 +79,46 @@ class OptionalAudioInput:
         # Tiered STT orchestrator
         self.transcriber = transcriber or HybridSpeechTranscriber()
 
+        # Remote receiver for companion laptop audio/name transmission
+        port = remote_port or int(os.environ.get("LSFACE_REMOTE_VOICE_PORT", "5055"))
+        self._remote_receiver = RemoteAudioReceiver(
+            port=port,
+            on_name_received=self._on_remote_name_received,
+            transcriber=self.transcriber,
+        )
+
         # Check audio hardware input availability
         try:
             import sounddevice
 
             self._sounddevice = sounddevice
-            self.reason = "Microphone level active; type your name if needed."
+            self.reason = f"Microphone level active (and remote port {self._remote_receiver.port})."
         except Exception:
             self._sounddevice = None
-            self.reason = "Optional microphone unavailable; type your name."
+            self.reason = f"Local mic unavailable; listening for laptop audio on port {self._remote_receiver.port}."
 
         # Configure initial STT status message
-        if self.available and self.transcriber.has_any_stt:
-            self.stt_reason = self.transcriber.get_initial_status()
-        elif self.available:
-            self.stt_reason = "Speech-to-text unavailable; type your name."
+        if self._sounddevice is not None and self.transcriber.has_any_stt:
+            self.stt_reason = (
+                f"Listening on local mic & remote laptop (port {self._remote_receiver.port}); or type below."
+            )
+        elif self._sounddevice is not None:
+            self.stt_reason = (
+                f"Local mic active, listening for laptop on port {self._remote_receiver.port}; or type below."
+            )
         else:
-            self.stt_reason = "Microphone unavailable; type your name below."
+            self.stt_reason = (
+                f"Listening for laptop audio/name on port {self._remote_receiver.port}; or type below."
+            )
 
     @property
     def available(self) -> bool:
-        """Return True if microphone audio capture hardware is available."""
-        return self._sounddevice is not None
+        """Return True if local mic or remote laptop receiver is ready."""
+        return self._sounddevice is not None or self._remote_receiver is not None
+
+    @property
+    def remote_port(self) -> int:
+        return self._remote_receiver.port
 
     @property
     def stt_available(self) -> bool:
@@ -96,27 +126,31 @@ class OptionalAudioInput:
         return self.transcriber.has_any_stt
 
     def start(self) -> bool:
-        """Start the audio stream and background transcription worker."""
-        if not self.available:
-            return False
-
+        """Start local audio stream and remote companion receiver."""
         self._stop_event.clear()
-        try:
-            self._stream = self._sounddevice.InputStream(
-                samplerate=self.sample_rate,
-                channels=1,
-                dtype="int16",
-                blocksize=1600,
-                callback=self._on_audio,
-            )
-            self._stream.start()
-        except Exception as exc:
-            self.reason = "Microphone unavailable; type your name."
-            self._set_error(f"Microphone unavailable; type your name. ({exc})")
-            self.stop()
-            return False
 
-        if self.stt_available:
+        # Start remote companion receiver so laptop can stream audio or send transcribed names
+        remote_ok = self._remote_receiver.start()
+
+        mic_ok = False
+        if self._sounddevice is not None:
+            try:
+                self._stream = self._sounddevice.InputStream(
+                    samplerate=self.sample_rate,
+                    channels=1,
+                    dtype="int16",
+                    blocksize=1600,
+                    callback=self._on_audio,
+                )
+                self._stream.start()
+                mic_ok = True
+            except Exception as exc:
+                self.reason = (
+                    f"Local mic unavailable; listening for laptop on port {self._remote_receiver.port}."
+                )
+                self._set_error(f"Local mic error ({exc}); listening on port {self._remote_receiver.port}.")
+
+        if mic_ok and self.stt_available:
             self._decoder_thread = threading.Thread(
                 target=self._decode_loop,
                 name="hybrid-whisper-transcriber",
@@ -124,7 +158,7 @@ class OptionalAudioInput:
             )
             self._decoder_thread.start()
 
-        return True
+        return mic_ok or remote_ok
 
     def poll(self) -> tuple[float, list[str], str | None]:
         """Return the latest audio level, at most four transcripts, and any status/error message."""
@@ -144,8 +178,11 @@ class OptionalAudioInput:
         return level, texts, status_or_error
 
     def stop(self) -> None:
-        """Stop audio stream and decoder thread."""
+        """Stop audio stream, decoder thread, and remote companion receiver."""
         self._stop_event.set()
+        if self._remote_receiver is not None:
+            self._remote_receiver.stop()
+
         stream, self._stream = self._stream, None
         if stream is not None:
             try:
@@ -163,6 +200,15 @@ class OptionalAudioInput:
 
         with self._lock:
             self._level = 0.0
+
+    def _on_remote_name_received(self, name: str, provider: str = "laptop", model: str = "") -> None:
+        """Callback invoked when a companion device (e.g. laptop) transmits a name."""
+        cleaned = clean_transcribed_name(name)
+        if not cleaned:
+            return
+        self._emit_text(cleaned)
+        provider_label = f"{provider} ({model})".strip() if model else provider
+        self._set_status(f"Received '{cleaned}' from laptop ({provider_label})")
 
     def push_audio_for_testing(self, pcm_bytes: bytes) -> None:
         """Push arbitrary 16-bit 16kHz PCM audio bytes into the decoder queue (for testing)."""
