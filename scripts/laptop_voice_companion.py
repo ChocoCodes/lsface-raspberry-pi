@@ -343,7 +343,7 @@ class LaptopVoiceCompanion:
 
                         print(f"[CONFIRMATION SENT] {name}")
                         self.wait_for_enrollment(enrollment_id)
-                        return
+                        break
 
                     elif choice == "e":
                         edited = input("Correct name: ").strip()
@@ -359,7 +359,8 @@ class LaptopVoiceCompanion:
 
                     elif choice == "c":
                         self.cancel_enrollment(enrollment_id)
-                        return
+                        print('Start a new enrollment')
+                        break
 
                     else:
                         print("Choose A, E, R, or C.")
