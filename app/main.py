@@ -50,7 +50,11 @@ def run_kivy(options) -> int:
             return manager
 
         def on_stop(self):
-            self.camera_manager.close()
+            try:
+                if self.root is not None:
+                    self.root.get_screen("voice_recognition").close_voice_service()
+            finally:
+                self.camera_manager.close()
 
     LSFaceApp().run()
     return 0

@@ -1,27 +1,10 @@
 #!/usr/bin/env python3
-"""Laptop Voice Companion for LS-Face Raspberry Pi.
+"""PC microphone companion for the existing LS-Face enrollment screen.
 
-This companion script runs on a laptop (the input device) to:
-1. Record audio from the laptop's microphone.
-2. Transcribe the spoken identity name using:
-   - Primary: Groq Whisper API (whisper-large-v3-turbo)
-   - Fallback: Local faster-whisper (small model) if network is flaky
-   - Fallback: Manual typing if both STT options fail
-3. Send the transcribed name over the local network to the Raspberry Pi
-   running the LS-Face enrollment screen.
-
-Usage Examples:
-    # Interactive recording loop (default):
-    python scripts/laptop_voice_companion.py --host 192.168.1.50
-
-    # Single-shot recording and transfer:
-    python scripts/laptop_voice_companion.py --host 192.168.1.50 --once
-
-    # Send typed name directly to Raspberry Pi:
-    python scripts/laptop_voice_companion.py --host 192.168.1.50 --text "Ada Lovelace"
-
-    # Test connection to Raspberry Pi:
-    python scripts/laptop_voice_companion.py --host 192.168.1.50 --check
+Open the enrollment name screen in app/main.py on the Pi, then run:
+    python scripts/laptop_voice_companion.py --host <pi-ip> --sttloc pi
+The Pi transcribes audio; the PC previews/edits/confirms the proposed name.
+No camera or enrollment database is opened by this companion.
 """
 from __future__ import annotations
 
@@ -45,25 +28,14 @@ if str(PROJECT_ROOT) not in sys.path:
 if str(PROJECT_ROOT / "app") not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT / "app"))
 
-try:
-    from app.src.engine.speech_transcriber import (
-        FasterWhisperAdapter,
-        GroqWhisperAdapter,
-        HybridSpeechTranscriber,
-        TranscriptionResult,
-        clean_transcribed_name,
-        pcm16_to_wav,
-    )
-except ImportError:
-    from src.engine.speech_transcriber import (
-        FasterWhisperAdapter,
-        GroqWhisperAdapter,
-        HybridSpeechTranscriber,
-        TranscriptionResult,
-        clean_transcribed_name,
-        pcm16_to_wav,
-    )
-
+from app.src.engine.speech_transcriber import (
+    FasterWhisperAdapter,
+    GroqWhisperAdapter,
+    HybridSpeechTranscriber,
+    TranscriptionResult,
+    clean_transcribed_name,
+    pcm16_to_wav,
+)
 
 class LaptopVoiceCompanion:
     """Manages audio recording on laptop, speech-to-text, and transmission to Raspberry Pi."""
@@ -74,20 +46,23 @@ class LaptopVoiceCompanion:
         port: int = 5055,
         groq_api_key: str | None = None,
         timeout: float = 4.0,
+        stt_loc: str = 'pc'
     ) -> None:
         self.host = host
         self.port = port
         self.base_url = f"http://{self.host}:{self.port}"
         self.timeout = timeout
+        self.stt_loc = stt_loc
         self.sample_rate = 16_000
-
+        self.transcriber = None
         # Initialize speech transcriber
-        groq_adapter = GroqWhisperAdapter(api_key=groq_api_key)
-        faster_adapter = FasterWhisperAdapter(model_name_or_path="small")
-        self.transcriber = HybridSpeechTranscriber(
-            groq_adapter=groq_adapter,
-            faster_whisper_adapter=faster_adapter,
-        )
+        if self.stt_loc == 'pc':
+            groq_adapter = GroqWhisperAdapter(api_key=groq_api_key)
+            faster_adapter = FasterWhisperAdapter(model_name_or_path="small")
+            self.transcriber = HybridSpeechTranscriber(
+                groq_adapter=groq_adapter,
+                faster_whisper_adapter=faster_adapter,
+            )
 
     def check_connection(self) -> tuple[bool, str]:
         """Verify reachability of the LS-Face receiver on Raspberry Pi."""
@@ -162,10 +137,7 @@ class LaptopVoiceCompanion:
                 channels=1,
                 dtype="int16",
             )
-            # Show a simple progress counter while recording
-            start_t = time.time()
-            while sd.wait() is None:
-                pass
+            sd.wait()
 
             pcm_bytes = recording.tobytes()
             print("[RECORDING] Capture complete.")
@@ -174,92 +146,253 @@ class LaptopVoiceCompanion:
             print(f"[ERROR] Failed recording from laptop microphone: {exc}")
             return None
 
+    def upload_audio(self, pcm_bytes: bytes) -> dict:
+        """ Send recorded audio to the Pi and return its pending result. """
+        wav_bytes = pcm16_to_wav(pcm_bytes, sample_rate=self.sample_rate)
+        request = urllib.request.Request(
+            f"{self.base_url}/api/transcribe",
+            data=wav_bytes,
+            headers={'Content-Type': 'audio/wav'},
+            method="POST"
+        )
+
+        with urllib.request.urlopen(request, timeout=120) as response:
+            result = json.loads(response.read().decode('utf-8'))
+
+        return result
+
+    def propose_name(self, name):
+        with urllib.request.urlopen(
+            f"{self.base_url}/api/status", timeout=self.timeout
+        ) as response:
+            status = json.loads(response.read().decode("utf-8"))
+        payload = json.dumps({
+            "name": name,
+            "enrollment_session_id": status.get("enrollment_session_id"),
+        }).encode("utf-8")
+        request = urllib.request.Request(
+            f"{self.base_url}/api/name", data=payload,
+            headers={"Content-Type": "application/json"}, method="POST",
+        )
+        with urllib.request.urlopen(request, timeout=self.timeout) as response:
+            return json.loads(response.read().decode("utf-8"))
+
+    def wait_for_enrollment(self, enrollment_id: str) -> None:
+        url = f"{self.base_url}/api/enrollment/{enrollment_id}"
+        deadline = time.monotonic() + 120
+
+        while time.monotonic() < deadline:
+            with urllib.request.urlopen(
+                url, timeout=self.timeout
+            ) as response:
+                result = json.loads(response.read().decode("utf-8"))
+
+            state = result.get("state")
+
+            if state == "complete":
+                print("[ENROLLED] Face enrollment saved successfully.")
+                return
+
+            if state == "awaiting_name":
+                print("[NOT ACCEPTED] The app rejected the name; retry or use its name field.")
+                return
+
+            if state in ("failed", "cancelled"):
+                print(f"[ENROLLMENT {state.upper()}] Start a new enrollment.")
+                return
+
+            time.sleep(0.5)
+
+        print(
+            "[STATUS UNKNOWN] Enrollment may still be running. "
+            "Check the receiver before starting another enrollment."
+        )
+
+    def cancel_enrollment(self, enrollment_id: str) -> None:
+        request = urllib.request.Request(
+            f"{self.base_url}/api/enrollment/{enrollment_id}/cancel",
+            data=b"",
+            method="POST",
+        )
+
+        with urllib.request.urlopen(
+            request, timeout=self.timeout
+        ) as response:
+            result = json.loads(response.read().decode("utf-8"))
+
+        print(f"[ENROLLMENT] {result.get('state')}")
+
+    def confirm_name(self, req_id: str, name: str) -> dict:
+        """ Send an explicitly accepted name to the Pi. """
+        payload = json.dumps({
+            'request_id': req_id,
+            'name': name
+        }).encode('utf-8')
+
+        request = urllib.request.Request(
+            f"{self.base_url}/api/confirm",
+            data=payload,
+            headers={'Content-Type': 'application/json'},
+            method='POST'
+        )
+
+        with urllib.request.urlopen(request, timeout=self.timeout) as response:
+            return json.loads(response.read().decode('utf-8'))
+
     def transcribe_audio(self, pcm_bytes: bytes) -> TranscriptionResult:
         """Transcribe PCM bytes using Groq -> faster-whisper -> manual."""
         return self.transcriber.transcribe(pcm_bytes, sample_rate=self.sample_rate)
 
     def interactive_session(self, default_duration: float = 3.5) -> None:
-        """Interactive loop for name enrollment from laptop to Raspberry Pi."""
-        print("=" * 64)
-        print("       LS-Face Laptop Voice Companion (Input Feeder)       ")
-        print("=" * 64)
-        print(f"Target Raspberry Pi: {self.base_url}")
-        print(f"STT Providers: {self.transcriber.get_initial_status()}")
-        print("-" * 64)
+        print(f"Target receiver: {self.base_url}")
 
-        # Check connectivity first
-        ok, msg = self.check_connection()
-        if ok:
-            print(f"[STATUS] OK - {msg}")
+        ok, message = self.check_connection()
+        print(f"[CONNECTION] {message}")
+        if not ok:
+            return
+
+        if self.stt_loc == "pi":
+            print("Press Enter to record, type a name, or type 'check' / 'q'.")
+            print("You can edit the proposed name before accepting.")
         else:
-            print(f"[STATUS] WARNING - {msg}")
-            print("  Make sure the LS-Face app is open on the Raspberry Pi and on the same Wi-Fi/LAN.")
-
-        print("\nCommands:")
-        print("  - Press [Enter] to record your name from laptop mic")
-        print("  - Type any name directly (e.g., 'Alice Smith') to transfer immediately")
-        print("  - Type 'check' to recheck connection to Raspberry Pi")
-        print("  - Type 'q' or 'exit' to quit\n")
+            print(self.transcriber.get_initial_status())
+            print("Press Enter to record, type a name, or type 'q'.")
 
         while True:
             try:
-                user_cmd = input("Laptop Voice [Enter to speak / type name / 'q']: ").strip()
+                command = input("Voice input: ").strip()
             except (KeyboardInterrupt, EOFError):
                 print("\nExiting.")
-                break
+                return
 
-            if user_cmd.lower() in ("q", "exit", "quit"):
-                print("Exiting laptop voice companion. Goodbye!")
-                break
+            if command.lower() in ("q", "quit", "exit"):
+                return
 
-            if user_cmd.lower() == "check":
-                ok, msg = self.check_connection()
-                print(f"[CHECK] {'OK' if ok else 'FAIL'} - {msg}")
+            if command.lower() == "check":
+                ok, message = self.check_connection()
+                print(f"[CONNECTION] {message}")
                 continue
 
-            # Option A: User typed a name directly
-            if user_cmd:
-                print(f"\n[TRANSFER] Sending typed name '{user_cmd}' to Raspberry Pi...")
-                trans_ok, trans_msg = self.transfer_name(user_cmd, provider="laptop-manual")
-                print(f"[{'SUCCESS' if trans_ok else 'FAILED'}] {trans_msg}\n")
+            if command and self.stt_loc == "pc":
+                ok, message = self.transfer_name(command, provider="laptop-manual")
+                print(message)
                 continue
 
-            # Option B: User pressed Enter to speak
-            pcm = self.record_audio(duration_sec=default_duration)
-            if not pcm:
-                typed = input("Microphone unavailable. Type name manually: ").strip()
-                if typed:
-                    trans_ok, trans_msg = self.transfer_name(typed, provider="laptop-manual")
-                    print(f"[{'SUCCESS' if trans_ok else 'FAILED'}] {trans_msg}\n")
-                continue
+            pcm = None if command else self.record_audio(duration_sec=default_duration)
+            if not pcm and not command:
+                command = input("Recording unavailable. Type a name (blank to retry): ").strip()
+                if not command:
+                    continue
+                if self.stt_loc == "pc":
+                    ok, message = self.transfer_name(command, provider="laptop-manual")
+                    print(message)
+                    continue
 
-            # Run transcription on laptop
-            print("[TRANSCRIBING] Processing audio with Groq whisper-v3-turbo (primary)...")
-            result = self.transcribe_audio(pcm)
-
-            if result.cleaned_name:
-                provider_desc = result.provider
-                if result.is_fallback:
-                    provider_desc += f" (fallback: {result.model})"
+            if self.stt_loc == "pc":
+                result = self.transcribe_audio(pcm)
+                if result.cleaned_name:
+                    ok, message = self.transfer_name(
+                        result.cleaned_name,
+                        provider=result.provider,
+                        model=result.model,
+                    )
+                    print(message)
                 else:
-                    provider_desc += f" ({result.model})"
+                    print(f"[ERROR] {result.error or 'No name detected.'}")
+                continue
 
-                print(f"[RESULT] Transcribed: '{result.cleaned_name}' via {provider_desc} ({result.latency_sec:.2f}s)")
+            enrollment_id = None
 
-                # Transfer to Raspberry Pi
-                print(f"[TRANSFER] Sending '{result.cleaned_name}' to Raspberry Pi at {self.base_url}...")
-                trans_ok, trans_msg = self.transfer_name(
-                    result.cleaned_name,
-                    provider=result.provider,
-                    model=result.model,
+            try:
+                print("[TRANSCRIBING] Sending audio to receiver...")
+                pending = self.propose_name(command) if command else self.upload_audio(pcm)
+
+                if not isinstance(pending, dict):
+                    raise ValueError("Receiver returned an invalid response.")
+
+                name = pending.get("proposed_name")
+                request_id = pending.get("request_id")
+                enrollment_id = pending.get("enrollment_session_id")
+
+                if not all(
+                    isinstance(value, str) and value.strip()
+                    for value in (name, request_id, enrollment_id)
+                ):
+                    raise ValueError(
+                        "Receiver response is missing the name, request ID, "
+                        "or enrollment session ID."
+                    )
+
+                print(f"[RESULT] Proposed name: {name}")
+                print(
+                    f"[PROVIDER] {pending.get('provider')} "
+                    f"({pending.get('model')})"
                 )
-                print(f"[{'SUCCESS' if trans_ok else 'FAILED'}] {trans_msg}\n")
-            else:
-                print(f"[WARN] No speech detected or STT failed: {result.error}")
-                typed = input("Would you like to type the name manually? [leave blank to retry]: ").strip()
-                if typed:
-                    trans_ok, trans_msg = self.transfer_name(typed, provider="laptop-manual")
-                    print(f"[{'SUCCESS' if trans_ok else 'FAILED'}] {trans_msg}\n")
+
+                while True:
+                    choice = input(
+                        "[A] Accept / [E] Edit / [R] Re-record / [C] Cancel: "
+                    ).strip().lower()
+
+                    if choice == "a":
+                        confirmed = self.confirm_name(request_id, name)
+
+                        if confirmed.get("status") != "queued":
+                            print("[ERROR] Receiver did not confirm the name.")
+                            continue
+
+                        print(f"[CONFIRMATION SENT] {name}")
+                        self.wait_for_enrollment(enrollment_id)
+                        return
+
+                    elif choice == "e":
+                        edited = input("Correct name: ").strip()
+                        if edited:
+                            name = edited
+                            print(f"[RESULT] Proposed name: {name}")
+                        else:
+                            print("[ERROR] Name cannot be empty.")
+
+                    elif choice == "r":
+                        print("Press Enter at the next prompt to record again.")
+                        break
+
+                    elif choice == "c":
+                        self.cancel_enrollment(enrollment_id)
+                        return
+
+                    else:
+                        print("Choose A, E, R, or C.")
+
+            except urllib.error.HTTPError as exc:
+                details = exc.read().decode("utf-8", errors="replace")
+                print(f"[HTTP {exc.code}] {details}")
+                if enrollment_id:
+                    print(
+                        "Check enrollment status on the receiver "
+                        "before retrying confirmation."
+                    )
+                    return
+
+            except (urllib.error.URLError, ValueError, OSError) as exc:
+                print(f"[ERROR] {exc}")
+                if enrollment_id:
+                    print(
+                        "The enrollment outcome may be unknown. "
+                        "Check the receiver before restarting."
+                    )
+                    return
+
+            except (KeyboardInterrupt, EOFError):
+                if enrollment_id:
+                    try:
+                        self.cancel_enrollment(enrollment_id)
+                    except Exception as exc:
+                        print(
+                            f"[CANCEL NOT CONFIRMED] {exc}. "
+                            "Check the receiver."
+                        )
+                return
 
 
 def parse_args():
@@ -309,15 +442,25 @@ def parse_args():
         action="store_true",
         help="Check connection to Raspberry Pi and exit",
     )
+    parser.add_argument(
+        '--sttloc',
+        choices=('pi', 'pc'),
+        default='pi',
+        help="Device where transcription runs: pc or pi (default: pi)"
+    )
+
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
+    if args.sttloc == "pi" and (args.audio_file or args.once or args.text is not None):
+        raise SystemExit("Pi mode uses interactive recording or typed input; omit --once, --audio-file and --text.")
     companion = LaptopVoiceCompanion(
         host=args.host,
         port=args.port,
         groq_api_key=args.groq_key,
+        stt_loc=args.sttloc
     )
 
     if args.check:

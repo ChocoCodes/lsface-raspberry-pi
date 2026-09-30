@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import os
 import threading
 from uuid import uuid4
 
@@ -12,7 +13,7 @@ from kivy.properties import BooleanProperty, NumericProperty, StringProperty
 from kivy.uix.screenmanager import Screen
 
 from src.config.config import KV_PATH
-from src.engine.audio_input import OptionalAudioInput
+from src.engine.enrollment_voice import EnrollmentVoiceService
 from src.engine.database.database_manager import DatabaseManager
 from src.engine.database.feature_db import FeatureDB
 
@@ -50,6 +51,10 @@ class VoiceRecognitionScreen(Screen):
         self._user_edited_transcript = False
         self._audio = None
         self._audio_poll = None
+        self._voice_service = EnrollmentVoiceService(
+            lambda callback: Clock.schedule_once(lambda _dt: callback(), 0),
+            self.accept_confirmed_name, self.cancel_remote_enrollment,
+        )
 
     def on_enter(self, *_args):
         if self._active_session_id is not None:
@@ -77,6 +82,7 @@ class VoiceRecognitionScreen(Screen):
         token = session_id or uuid4().hex
         self._active_session_id = token
         self.session_id = token
+        self._voice_service.begin(token)
         self.database_id = str(database_id or "").strip()
         self.camera_mode = camera_mode
         self._frames = {
@@ -107,6 +113,26 @@ class VoiceRecognitionScreen(Screen):
         manager = self.manager
         if manager is not None and manager.current == self.name:
             self._start_audio()
+
+    def accept_confirmed_name(self, session_id, name):
+        """Called only by the remote service's Kivy-thread dispatcher."""
+        if (session_id != self._active_session_id
+                or self.state not in ("preparing", "ready") or self.name_locked):
+            return False
+        normalized = FeatureDB.normalize_name(name)
+        self._user_edited_transcript = True
+        self._set_transcript(normalized)
+        self.continue_enrollment()
+        return self.name_locked
+
+    def cancel_remote_enrollment(self, session_id):
+        if session_id != self._active_session_id or self.state == "committing":
+            return False
+        self.go_back()
+        return True
+
+    def close_voice_service(self):
+        self._voice_service.close()
 
     def continue_enrollment(self) -> None:
         """Handle both the Enter key and the visible Continue button."""
@@ -143,6 +169,7 @@ class VoiceRecognitionScreen(Screen):
 
         self._set_transcript(name)
         self.name_locked = True
+        self._voice_service.update(self._active_session_id, "confirmed")
         self._continue_requested = True
         self.continue_enabled = False
         if self.state == "preparing":
@@ -195,14 +222,17 @@ class VoiceRecognitionScreen(Screen):
             return
         self._prepare_thread = None
         if error is not None:
-            self.state = "error"
-            self.enrollment_progress = 0.0
-            self.status_text = "Enrollment preparation could not finish."
-            self.progress_text = str(error)
-            self.action_text = "Retry preparation"
+            self._voice_service.update(token, "failed")
+            self._frames = None
+            self._prepared_features = None
+            self._set_transcript("")
             self.name_locked = False
             self._continue_requested = False
-            self._refresh_gate()
+            self.state = "error"
+            self.status_text = "Enrollment failed. Start a new pose capture."
+            self.progress_text = str(error)
+            self.action_text = "Back"
+            self.continue_enabled = True
             return
         if prepared is None:
             self._finish_preparation(
@@ -236,6 +266,7 @@ class VoiceRecognitionScreen(Screen):
         database_id = self.database_id
         prepared = self._prepared_features
         self.state = "committing"
+        self._voice_service.update(token, "committing")
         self.status_text = "Saving enrollment and publishing live recognition…"
         self.progress_text = "This may take a moment."
         self.action_text = "Saving…"
@@ -271,15 +302,22 @@ class VoiceRecognitionScreen(Screen):
             return
         self._commit_thread = None
         if error is not None:
-            self.state = "error"
-            self.status_text = "Enrollment could not be saved."
-            self.progress_text = str(error)
-            self.action_text = "Continue"
+            self._voice_service.update(token, "failed")
+            self._frames = None
+            self._prepared_features = None
+            self._set_transcript("")
             self.name_locked = False
             self._continue_requested = False
-            self._refresh_gate()
+            self.state = "error"
+            self.status_text = "Enrollment failed. Start a new pose capture."
+            self.progress_text = str(error)
+            self.action_text = "Back"
+            self.continue_enabled = True
             return
 
+        self._voice_service.update(token, "complete")
+        self._frames = None
+        self._prepared_features = None
         self.state = "complete"
         self.enrollment_progress = 1.0
         self.status_text = "Enrollment saved. Opening live recognition…"
@@ -335,46 +373,24 @@ class VoiceRecognitionScreen(Screen):
             self._setting_transcript = False
 
     def _start_audio(self) -> None:
-        if self._audio is not None:
-            return
-        self._audio = OptionalAudioInput()
-        if not self._audio.available:
-            self.audio_status = self._audio.reason
-            return
-        if not self._audio.start():
-            self.audio_status = self._audio.reason
-            return
-        self.audio_status = self._audio.stt_reason
-        self._audio_poll = Clock.schedule_interval(self._poll_audio, 1.0 / 20.0)
+        # PC owns the microphone. This service never opens a camera or Pi mic.
+        try:
+            port = int(os.environ.get("LSFACE_REMOTE_VOICE_PORT", "5055"))
+            self._voice_service.start(port=port)
+            self.audio_status = f"PC voice input listening on port {port}; or type below."
+        except (OSError, ValueError) as exc:
+            self.audio_status = f"Remote voice unavailable ({exc}); type your name below."
 
     def _stop_audio(self) -> None:
-        if self._audio_poll is not None:
-            self._audio_poll.cancel()
-            self._audio_poll = None
-        if self._audio is not None:
-            self._audio.stop()
-            self._audio = None
+        # Keep status reachable after navigating to recognition; stop on app exit.
         self.audio_level = 0.0
-
-    def _poll_audio(self, _dt) -> None:
-        if self._audio is None or self._active_session_id is None:
-            return
-        level, texts, error = self._audio.poll()
-        self.audio_level = level
-        if error:
-            self.audio_status = error
-        if self.name_locked or self._user_edited_transcript:
-            return
-        for text in texts:
-            self._set_transcript(text)
-            self._refresh_gate()
 
     def _refresh_gate(self) -> None:
         if self.state == "error":
             self.continue_enabled = (
                 self._active_session_id is not None
-                and self.action_text != "Back"
-                and (self._prepared_features is None or bool(self.transcript.strip()))
+                and (self.action_text == "Back" or self._prepared_features is None
+                     or bool(self.transcript.strip()))
             )
             return
         self.continue_enabled = (
@@ -385,5 +401,10 @@ class VoiceRecognitionScreen(Screen):
         )
 
     def _invalidate_session(self) -> None:
+        if self._voice_service.status()["state"] not in ("complete", "failed"):
+            self._voice_service.update(self._active_session_id, "cancelled")
+        self._frames = None
+        self._prepared_features = None
+        self._set_transcript("")
         self._active_session_id = None
         self._continue_requested = False

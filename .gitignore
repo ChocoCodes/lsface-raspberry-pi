@@ -11,3 +11,5 @@ enrollment/
 logs/
 models/head_pose/
 app/config/head_pose.local*.json
+
+.env
