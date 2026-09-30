@@ -11,6 +11,12 @@ APP_ROOT = Path(__file__).resolve().parent
 if str(APP_ROOT) not in sys.path:
     sys.path.insert(0, str(APP_ROOT))
 
+try:
+    from src.engine.speech_transcriber import load_dotenv
+    load_dotenv()
+except Exception:
+    pass
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)

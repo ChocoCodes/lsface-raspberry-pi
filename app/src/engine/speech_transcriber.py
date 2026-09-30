@@ -23,6 +23,31 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 
+def load_dotenv(path: Optional[Path] = None) -> None:
+    """Load key-value pairs from .env into os.environ if not already present."""
+    if "GROQ_API_KEY" in os.environ and path is None:
+        return
+    candidates = [path] if path else [
+        Path(".env"),
+        Path(__file__).resolve().parent / ".env",
+        Path(__file__).resolve().parents[2] / ".env",
+        Path(__file__).resolve().parents[3] / ".env",
+    ]
+    for p in candidates:
+        if p and p.is_file():
+            try:
+                for line in p.read_text(encoding="utf-8").splitlines():
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        k, v = line.split("=", 1)
+                        k, v = k.strip(), v.strip().strip("'\"")
+                        if k and k not in os.environ:
+                            os.environ[k] = v
+                break
+            except Exception:
+                pass
+
+
 def pcm16_to_wav(pcm_bytes: bytes, sample_rate: int = 16_000, channels: int = 1) -> bytes:
     """Convert raw 16-bit PCM bytes to a valid in-memory WAV container."""
     buf = io.BytesIO()
@@ -72,6 +97,8 @@ class GroqWhisperAdapter:
         model: Optional[str] = None,
         timeout: float = 5.0,
     ) -> None:
+        if api_key is None and "GROQ_API_KEY" not in os.environ:
+            load_dotenv()
         self.api_key = api_key or os.environ.get("GROQ_API_KEY")
         raw_model = model or os.environ.get("GROQ_WHISPER_MODEL", self.DEFAULT_MODEL)
         # Normalize colloquial name 'whisper-v3-turbo' to official Groq identifier 'whisper-large-v3-turbo'
@@ -166,11 +193,15 @@ class FasterWhisperAdapter:
         if self._model is None and self.is_available:
             with self._lock:
                 if self._model is None:
-                    self._model = self._faster_whisper.WhisperModel(
-                        self.model_name_or_path,
-                        device=self.device,
-                        compute_type=self.compute_type,
-                    )
+                    try:
+                        self._model = self._faster_whisper.WhisperModel(
+                            self.model_name_or_path,
+                            device=self.device,
+                            compute_type=self.compute_type,
+                        )
+                    except Exception as exc:
+                        logger.warning("Failed to load faster-whisper model '%s': %s", self.model_name_or_path, exc)
+                        self._model = None
         return self._model
 
     def warm_up(self) -> None:

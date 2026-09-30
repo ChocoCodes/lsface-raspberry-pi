@@ -52,6 +52,7 @@ try:
         HybridSpeechTranscriber,
         TranscriptionResult,
         clean_transcribed_name,
+        load_dotenv,
         pcm16_to_wav,
     )
 except ImportError:
@@ -61,8 +62,11 @@ except ImportError:
         HybridSpeechTranscriber,
         TranscriptionResult,
         clean_transcribed_name,
+        load_dotenv,
         pcm16_to_wav,
     )
+
+load_dotenv()
 
 
 class LaptopVoiceCompanion:
