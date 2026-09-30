@@ -1,257 +1,408 @@
-#:kivy 2.3.1
+#:kivy 2.3.0
 #:import dp kivy.metrics.dp
+#:import tokens src.ui.tokens
+
+# ==============================================================================
+# MICROPHONE ORB & SOUNDWAVE VISUALIZER
+# ==============================================================================
+
+<MicSoundwaveBar@Widget>:
+    level: 0.0
+    active: False
+    size_hint: (None, None)
+    width: dp(4)
+    height: dp(8) + dp(32) * min(1.0, max(0.0, self.level))
+    canvas.before:
+        Color:
+            rgba: tokens.COLOR_ACCENT if self.active else tokens.COLOR_BORDER_LIGHT
+        RoundedRectangle:
+            pos: (self.x, self.center_y - self.height / 2.0)
+            size: (self.width, self.height)
+            radius: [dp(2),]
+
+
+<VoiceVisualizerOrb@Widget>:
+    audio_level: 0.0
+    is_error: False
+    canvas.before:
+        # Outer dynamic acoustic pulse wave 2
+        Color:
+            rgba: (0.85, 0.18, 0.18, 0.04 + min(0.12, root.audio_level * 0.15)) if root.is_error else (0.0, 0.40, 0.20, 0.05 + min(0.16, root.audio_level * 0.22))
+        Line:
+            circle: (self.center_x, self.center_y, dp(50) + min(1.0, root.audio_level * 1.8) * dp(20))
+            width: dp(1.4)
+
+        # Outer dynamic acoustic pulse wave 1
+        Color:
+            rgba: (0.85, 0.18, 0.18, 0.08 + min(0.20, root.audio_level * 0.30)) if root.is_error else (0.0, 0.40, 0.20, 0.10 + min(0.25, root.audio_level * 0.35))
+        Line:
+            circle: (self.center_x, self.center_y, dp(42) + min(1.0, root.audio_level * 1.4) * dp(14))
+            width: dp(1.8)
+
+        # Center Orb Solid Fill
+        Color:
+            rgba: tokens.COLOR_ERROR_TINT if root.is_error else tokens.COLOR_ACCENT_TINT
+        Ellipse:
+            pos: (self.center_x - dp(36), self.center_y - dp(36))
+            size: (dp(72), dp(72))
+
+        # Center Orb Border Stroke
+        Color:
+            rgba: tokens.COLOR_ERROR if root.is_error else (tokens.COLOR_ACCENT_HOVER if root.audio_level > 0.08 else tokens.COLOR_ACCENT)
+        Line:
+            circle: (self.center_x, self.center_y, dp(36))
+            width: dp(2.0)
+
+        # Studio Microphone Glyph - Capsule
+        Color:
+            rgba: tokens.COLOR_ERROR if root.is_error else tokens.COLOR_ACCENT
+        RoundedRectangle:
+            pos: (self.center_x - dp(8), self.center_y - dp(3))
+            size: (dp(16), dp(24))
+            radius: [dp(8), dp(8), dp(8), dp(8)]
+
+        # Studio Microphone Glyph - Suspension Cradle Arc
+        Color:
+            rgba: tokens.COLOR_ERROR if root.is_error else tokens.COLOR_ACCENT
+        Line:
+            circle: (self.center_x, self.center_y + dp(5), dp(13.5), 180, 360)
+            width: dp(2.2)
+            cap: 'round'
+
+        # Studio Microphone Glyph - Vertical Stem
+        Line:
+            points: [self.center_x, self.center_y - dp(8.5), self.center_x, self.center_y - dp(16)]
+            width: dp(2.2)
+            cap: 'round'
+
+        # Studio Microphone Glyph - Horizontal Base
+        Line:
+            points: [self.center_x - dp(10), self.center_y - dp(16), self.center_x + dp(10), self.center_y - dp(16)]
+            width: dp(2.2)
+            cap: 'round'
+
+
+# ==============================================================================
+# MAIN VOICE RECOGNITION SCREEN
+# ==============================================================================
 
 <VoiceRecognitionScreen>:
     canvas.before:
         Color:
-            rgba: (0.045, 0.063, 0.094, 1)
+            rgba: tokens.COLOR_BG
         Rectangle:
             pos: self.pos
             size: self.size
 
     BoxLayout:
         orientation: 'vertical'
-        padding: ['34dp', '24dp', '34dp', '26dp']
-        spacing: '16dp'
+        padding: [dp(36), dp(20), dp(36), dp(20)]
+        spacing: dp(12)
 
+        # ----------------------------------------------------------------------
+        # Top Navigation & Header Bar
+        # ----------------------------------------------------------------------
         BoxLayout:
             size_hint_y: None
-            height: '42dp'
-            spacing: '12dp'
+            height: dp(48)
+            spacing: dp(16)
 
-            Button:
-                text: '‹  Back'
-                size_hint_x: None
-                width: '100dp'
-                background_normal: ''
-                background_color: (0.12, 0.16, 0.23, 1) if self.state == 'normal' else (0.16, 0.22, 0.29, 1)
-                color: (0.93, 0.96, 0.98, 1)
+            BackButton:
+                pos_hint: {'center_y': 0.5}
                 disabled: root.state == 'committing'
                 on_release: root.go_back()
 
-            Label:
-                text: 'NAME ENROLLMENT'
-                font_size: '17sp'
-                bold: True
-                color: (0.93, 0.96, 0.98, 1)
-                halign: 'left'
-                valign: 'middle'
-                text_size: self.size
-
-            Label:
-                text: root.database_id if root.database_id else 'NO DATABASE'
-                size_hint_x: None
-                width: '180dp'
-                font_size: '11sp'
-                color: (0.50, 0.56, 0.65, 1)
-                halign: 'right'
-                valign: 'middle'
-                text_size: self.size
-
-        Widget:
-            size_hint_y: None
-            height: '40dp'
-
-        AnchorLayout:
-            size_hint_y: None
-            height: '468dp'
-            anchor_x: 'center'
-            anchor_y: 'top'
-
             BoxLayout:
                 orientation: 'vertical'
-                size_hint: None, None
-                width: '720dp'
-                height: '468dp'
-                spacing: '10dp'
+                spacing: dp(2)
+                pos_hint: {'center_y': 0.5}
 
                 Label:
-                    text: 'VOICE-ASSISTED CHECKPOINT'
-                    size_hint_y: None
-                    height: '20dp'
-                    font_size: '11sp'
-                    bold: True
-                    color: (0.42, 0.91, 0.75, 1)
+                    text: 'NAME ENROLLMENT'
+                    font_name: tokens.FONT_BLACK
+                    font_size: f"{tokens.FONT_SIZE_TITLE}sp"
+                    color: tokens.COLOR_TEXT_PRIMARY
                     halign: 'left'
                     valign: 'middle'
                     text_size: self.size
 
                 Label:
-                    text: root.prompt_text
-                    size_hint_y: None
-                    height: '52dp'
-                    font_size: '36sp'
-                    bold: True
-                    color: (0.93, 0.96, 0.98, 1)
+                    text: 'Step 2 of 2 • Biometric Identity Registration'
+                    font_name: tokens.FONT_REGULAR
+                    font_size: f"{tokens.FONT_SIZE_CAPTION}sp"
+                    color: tokens.COLOR_TEXT_SECONDARY
                     halign: 'left'
                     valign: 'middle'
                     text_size: self.size
 
-                Label:
-                    text: 'Say your name if voice input is available, or type it below.'
-                    size_hint_y: None
-                    height: '42dp'
-                    font_size: '16sp'
-                    color: (0.67, 0.72, 0.80, 1)
-                    halign: 'left'
-                    valign: 'top'
-                    text_size: self.size
+            Widget:
 
+            StatusBadge:
+                badge_text: root.database_id if root.database_id else 'NO DATABASE'
+                badge_status: 'ready' if root.database_id else 'warning'
+                pos_hint: {'center_y': 0.5}
+
+        # ----------------------------------------------------------------------
+        # Centered Interactive Card
+        # ----------------------------------------------------------------------
+        AnchorLayout:
+            anchor_x: 'center'
+            anchor_y: 'center'
+
+            AppCard:
+                size_hint: (None, None)
+                width: dp(760)
+                height: dp(540)
+                padding: [dp(48), dp(28), dp(48), dp(24)]
+                spacing: dp(12)
+
+                # Hero Microphone & Soundwave Visualizer Section
                 BoxLayout:
+                    orientation: 'vertical'
                     size_hint_y: None
-                    height: '44dp'
-                    spacing: '12dp'
+                    height: dp(172)
+                    spacing: dp(10)
 
-                    Widget:
-                        size_hint_x: None
-                        width: '28dp'
-                        canvas:
-                            Color:
-                                rgba: (0.42, 0.91, 0.75, 0.24 + root.audio_level * 0.76)
-                            Ellipse:
-                                pos: (self.center_x - dp(5), self.center_y - dp(5))
-                                size: (dp(10), dp(10))
-                            Line:
-                                circle: (self.center_x, self.center_y, dp(11))
-                                width: 1.2
+                    # Microphone Orb
+                    AnchorLayout:
+                        anchor_x: 'center'
+                        anchor_y: 'center'
+                        size_hint_y: None
+                        height: dp(110)
 
-                    BoxLayout:
-                        orientation: 'vertical'
-                        spacing: '4dp'
+                        VoiceVisualizerOrb:
+                            id: mic_orb
+                            size_hint: (None, None)
+                            size: (dp(110), dp(110))
+                            audio_level: root.audio_level
+                            is_error: root.state == 'error'
 
-                        Label:
-                            text: root.audio_status
-                            size_hint_y: None
-                            height: '28dp'
-                            font_size: '12sp'
-                            color: (0.67, 0.72, 0.80, 1)
-                            halign: 'left'
-                            valign: 'middle'
-                            text_size: self.size
+                    # Responsive Soundwave Equalizer Capsule
+                    AnchorLayout:
+                        anchor_x: 'center'
+                        anchor_y: 'center'
+                        size_hint_y: None
+                        height: dp(30)
 
-                        ProgressBar:
-                            max: 1
-                            value: root.audio_level
-                            size_hint_y: None
-                            height: '5dp'
+                        BoxLayout:
+                            size_hint: (None, None)
+                            size: (self.minimum_width, dp(30))
+                            padding: [dp(14), dp(4), dp(14), dp(4)]
+                            spacing: dp(5)
+                            pos_hint: {'center_x': 0.5, 'center_y': 0.5}
+                            canvas.before:
+                                Color:
+                                    rgba: tokens.COLOR_SURFACE_2
+                                RoundedRectangle:
+                                    pos: self.pos
+                                    size: self.size
+                                    radius: [dp(tokens.RADIUS_PILL),]
 
+                            MicSoundwaveBar:
+                                level: root.audio_level * 0.5
+                                active: root.audio_level > 0.04
+                                pos_hint: {'center_y': 0.5}
+
+                            MicSoundwaveBar:
+                                level: root.audio_level * 0.9
+                                active: root.audio_level > 0.04
+                                pos_hint: {'center_y': 0.5}
+
+                            MicSoundwaveBar:
+                                level: root.audio_level * 1.5
+                                active: root.audio_level > 0.04
+                                pos_hint: {'center_y': 0.5}
+
+                            MicSoundwaveBar:
+                                level: root.audio_level * 2.2
+                                active: root.audio_level > 0.04
+                                pos_hint: {'center_y': 0.5}
+
+                            MicSoundwaveBar:
+                                level: root.audio_level * 1.5
+                                active: root.audio_level > 0.04
+                                pos_hint: {'center_y': 0.5}
+
+                            MicSoundwaveBar:
+                                level: root.audio_level * 0.9
+                                active: root.audio_level > 0.04
+                                pos_hint: {'center_y': 0.5}
+
+                            MicSoundwaveBar:
+                                level: root.audio_level * 0.5
+                                active: root.audio_level > 0.04
+                                pos_hint: {'center_y': 0.5}
+
+                    # Live Telemetry / Audio Device Status
                     Label:
-                        text: 'MIC INPUT'
-                        size_hint_x: None
-                        width: '82dp'
-                        font_size: '10sp'
-                        bold: True
-                        color: (0.50, 0.56, 0.65, 1)
-                        halign: 'right'
+                        text: root.audio_status
+                        size_hint_y: None
+                        height: dp(14)
+                        font_name: tokens.FONT_MEDIUM
+                        font_size: f"{tokens.FONT_SIZE_MICRO + 1}sp"
+                        color: tokens.COLOR_TEXT_MUTED
+                        halign: 'center'
                         valign: 'middle'
                         text_size: self.size
 
+                # --------------------------------------------------------------
+                # Prompt Headlines
+                # --------------------------------------------------------------
+                BoxLayout:
+                    orientation: 'vertical'
+                    size_hint_y: None
+                    height: dp(60)
+                    spacing: dp(4)
+
+                    Label:
+                        text: root.prompt_text
+                        size_hint_y: None
+                        height: dp(34)
+                        font_name: tokens.FONT_BLACK
+                        font_size: f"{tokens.FONT_SIZE_TITLE + 2}sp"
+                        color: tokens.COLOR_TEXT_PRIMARY
+                        halign: 'center'
+                        valign: 'middle'
+                        text_size: self.size
+
+                    Label:
+                        text: 'Speak your full name into the microphone, or type and confirm below.'
+                        size_hint_y: None
+                        height: dp(20)
+                        font_name: tokens.FONT_REGULAR
+                        font_size: f"{tokens.FONT_SIZE_BODY}sp"
+                        color: tokens.COLOR_TEXT_SECONDARY
+                        halign: 'center'
+                        valign: 'middle'
+                        text_size: self.size
+
+                # --------------------------------------------------------------
+                # Styled Interactive Name Input
+                # --------------------------------------------------------------
+                AnchorLayout:
+                    anchor_x: 'center'
+                    anchor_y: 'center'
+                    size_hint_y: None
+                    height: dp(54)
+
+                    AppTextInput:
+                        id: name_input
+                        text: root.transcript
+                        multiline: False
+                        hint_text: "Say or type full name..."
+                        disabled: root.name_locked or root.state == 'complete'
+                        size_hint: (None, None)
+                        width: dp(540)
+                        height: dp(50)
+                        padding: [dp(20), dp(12)]
+                        font_name: tokens.FONT_BOLD
+                        font_size: f"{tokens.FONT_SIZE_TITLE - 2}sp"
+                        halign: 'center'
+                        on_text: root.set_transcript_from_input(self.text)
+                        on_text_validate: root.continue_enrollment()
+
+                # --------------------------------------------------------------
+                # Primary Action CTA Button & Shortcut
+                # --------------------------------------------------------------
+                BoxLayout:
+                    orientation: 'vertical'
+                    size_hint_y: None
+                    height: dp(66)
+                    spacing: dp(6)
+
+                    AnchorLayout:
+                        anchor_x: 'center'
+                        anchor_y: 'center'
+                        size_hint_y: None
+                        height: dp(44)
+
+                        PrimaryButton:
+                            button_text: root.action_text
+                            size_hint: (None, None)
+                            width: dp(260)
+                            height: dp(44)
+                            disabled: not root.continue_enabled
+                            on_release: root.continue_enrollment()
+
+                    Label:
+                        text: 'Press Enter or tap Continue to finish'
+                        size_hint_y: None
+                        height: dp(14)
+                        font_name: tokens.FONT_REGULAR
+                        font_size: f"{tokens.FONT_SIZE_MICRO + 1}sp"
+                        color: tokens.COLOR_TEXT_MUTED
+                        halign: 'center'
+                        valign: 'middle'
+                        text_size: self.size
+
+                # Spacer to push footer down
                 Widget:
-                    size_hint_y: None
-                    height: '14dp'
-
-                Label:
-                    text: 'Your name'
-                    size_hint_y: None
-                    height: '20dp'
-                    font_size: '14sp'
-                    bold: True
-                    color: (0.93, 0.96, 0.98, 1)
-                    halign: 'left'
-                    valign: 'middle'
-                    text_size: self.size
-
-                TextInput:
-                    id: name_input
-                    text: root.transcript
-                    multiline: False
-                    hint_text: 'Type or confirm the person\'s name'
-                    disabled: root.name_locked or root.state == 'complete'
-                    size_hint_y: None
-                    height: '72dp'
-                    padding: ['20dp', '18dp']
-                    font_size: '28sp'
-                    background_normal: ''
-                    background_active: ''
-                    background_color: (0.12, 0.16, 0.23, 1)
-                    foreground_color: (0.93, 0.96, 0.98, 1)
-                    hint_text_color: (0.50, 0.56, 0.65, 1)
-                    cursor_color: (0.42, 0.91, 0.75, 1)
-                    selection_color: (0.42, 0.91, 0.75, 0.28)
-                    on_text: root.set_transcript_from_input(self.text)
-                    on_text_validate: root.continue_enrollment()
-                    canvas.after:
-                        Color:
-                            rgba: (0.42, 0.91, 0.75, 1) if self.focus else (0.23, 0.31, 0.42, 1)
-                        Line:
-                            rounded_rectangle: (self.x, self.y, self.width, self.height, dp(12))
-                            width: 1.4 if self.focus else 1
-
-                BoxLayout:
-                    size_hint_y: None
-                    height: '56dp'
-                    spacing: '16dp'
-
-                    Label:
-                        text: 'Check the name, then press Enter.'
-                        font_size: '13sp'
-                        color: (0.50, 0.56, 0.65, 1)
-                        halign: 'left'
-                        valign: 'middle'
-                        text_size: self.size
-
-                    Button:
-                        text: root.action_text
-                        size_hint_x: None
-                        width: '208dp'
-                        background_normal: ''
-                        background_color: (0.17, 0.70, 0.54, 1) if root.continue_enabled else (0.12, 0.16, 0.23, 1)
-                        color: (0.03, 0.08, 0.07, 1) if root.continue_enabled else (0.45, 0.50, 0.58, 1)
-                        disabled: not root.continue_enabled
-                        on_release: root.continue_enrollment()
-
-                BoxLayout:
                     size_hint_y: 1
-                    padding: ['14dp', '8dp', '14dp', '8dp']
-                    spacing: '12dp'
+
+                # --------------------------------------------------------------
+                # Biometric Feature Extraction Status Footer
+                # --------------------------------------------------------------
+                BoxLayout:
+                    orientation: 'vertical'
+                    size_hint_y: None
+                    height: dp(48)
+                    padding: [dp(16), dp(8), dp(16), dp(8)]
+                    spacing: dp(4)
                     canvas.before:
                         Color:
-                            rgba: (0.09, 0.12, 0.17, 1)
+                            rgba: (tokens.COLOR_ERROR_TINT if root.state == 'error' else tokens.COLOR_SURFACE_2)
                         RoundedRectangle:
                             pos: self.pos
                             size: self.size
-                            radius: [12,]
-
-                    Widget:
-                        size_hint_x: None
-                        width: '6dp'
-                        canvas:
-                            Color:
-                                rgba: (1, 0.64, 0.47, 1) if root.state == 'error' else (0.42, 0.91, 0.75, 1)
-                            RoundedRectangle:
-                                pos: self.pos
-                                size: self.size
-                                radius: [3,]
+                            radius: [dp(tokens.RADIUS_MD),]
+                    canvas.after:
+                        Color:
+                            rgba: (tokens.COLOR_ERROR if root.state == 'error' else tokens.COLOR_BORDER_MUTED)
+                        Line:
+                            rounded_rectangle: (self.x, self.y, self.width, self.height, dp(tokens.RADIUS_MD))
+                            width: tokens.BORDER_WIDTH_THIN
 
                     BoxLayout:
-                        orientation: 'vertical'
-                        spacing: '2dp'
+                        orientation: 'horizontal'
+                        size_hint_y: None
+                        height: dp(20)
+                        spacing: dp(8)
+
+                        # Small Status Dot
+                        Widget:
+                            size_hint: (None, None)
+                            size: (dp(10), dp(10))
+                            pos_hint: {'center_y': 0.5}
+                            canvas:
+                                Color:
+                                    rgba: (tokens.COLOR_ERROR if root.state == 'error' else (tokens.COLOR_SUCCESS if root.state in ('ready', 'complete') else tokens.COLOR_WARNING))
+                                Ellipse:
+                                    pos: self.pos
+                                    size: self.size
 
                         Label:
                             text: root.status_text
-                            font_size: '13sp'
-                            bold: True
-                            color: (1, 0.64, 0.47, 1) if root.state == 'error' else (0.93, 0.96, 0.98, 1)
+                            size_hint_x: 1
+                            font_name: tokens.FONT_BOLD
+                            font_size: f"{tokens.FONT_SIZE_CAPTION}sp"
+                            color: (tokens.COLOR_ERROR if root.state == 'error' else tokens.COLOR_TEXT_PRIMARY)
                             halign: 'left'
                             valign: 'middle'
                             text_size: self.size
 
                         Label:
                             text: root.progress_text
-                            font_size: '12sp'
-                            color: (1, 0.64, 0.47, 1) if root.state == 'error' else (0.67, 0.72, 0.80, 1)
-                            halign: 'left'
+                            size_hint_x: None
+                            width: self.texture_size[0]
+                            font_name: tokens.FONT_REGULAR
+                            font_size: f"{tokens.FONT_SIZE_MICRO + 1}sp"
+                            color: tokens.COLOR_TEXT_MUTED
+                            halign: 'right'
                             valign: 'middle'
-                            text_size: self.size
 
-        Widget:
+                    AppProgressBar:
+                        value: root.enrollment_progress
+                        max: 1.0
+                        size_hint_y: None
+                        height: dp(3)
+                        opacity: 1.0 if root.state in ('preparing', 'committing') else 0.0

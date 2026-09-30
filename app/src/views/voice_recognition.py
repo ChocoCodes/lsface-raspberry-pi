@@ -15,8 +15,9 @@ from src.config.config import KV_PATH
 from src.engine.audio_input import OptionalAudioInput
 from src.engine.database.database_manager import DatabaseManager
 from src.engine.database.feature_db import FeatureDB
+from src.ui import load_design_system
 
-
+load_design_system()
 Builder.load_file(str(KV_PATH / "voice_recognition.kv"))
 
 

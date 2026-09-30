@@ -29,6 +29,9 @@ def run_kivy(options) -> int:
     from kivy.core.window import Window
     from kivy.uix.screenmanager import FadeTransition, ScreenManager
 
+    from src.ui import load_design_system, tokens
+    load_design_system()
+
     from src.views.home import HomeScreen
     from src.views.identities import ManageIdentitiesScreen
     from src.views.pose import PoseScreen
@@ -43,7 +46,7 @@ def run_kivy(options) -> int:
             self.pose_options = options
             Window.fullscreen = False
             Window.position = 'auto'
-            Window.clearcolor = (0.045, 0.063, 0.094, 1)
+            Window.clearcolor = tokens.COLOR_BG
             Window.size = (1280, 720)
             manager = ScreenManager(transition=FadeTransition(duration=0.15))
             manager.add_widget(HomeScreen(name="home"))

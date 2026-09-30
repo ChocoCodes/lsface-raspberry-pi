@@ -1,99 +1,208 @@
-<ManageIdentitiesView>:
+#:kivy 2.3.1
+#:import dp kivy.metrics.dp
+#:import tokens src.ui.tokens
 
+<IdentityRowItem@DataTableRow>:
+    id_text: ''
+    name_text: ''
+    lbph_text: ''
+    sface_text: ''
+    size_hint_y: None
+    height: dp(54)
+    spacing: dp(12)
+    padding: [dp(24), 0, dp(24), 0]
+
+    Label:
+        text: root.id_text
+        size_hint_x: None
+        width: dp(70)
+        font_name: tokens.FONT_MEDIUM
+        font_size: f"{tokens.FONT_SIZE_BODY}sp"
+        color: tokens.COLOR_TEXT_MUTED
+        halign: 'left'
+        valign: 'middle'
+        text_size: self.size
+
+    Label:
+        text: root.name_text
+        size_hint_x: 0.35
+        font_name: tokens.FONT_BOLD
+        font_size: f"{tokens.FONT_SIZE_BODY}sp"
+        color: tokens.COLOR_TEXT_PRIMARY
+        halign: 'left'
+        valign: 'middle'
+        text_size: self.size
+
+    Label:
+        text: root.lbph_text
+        size_hint_x: 0.25
+        font_name: tokens.FONT_REGULAR
+        font_size: f"{tokens.FONT_SIZE_BODY}sp"
+        color: tokens.COLOR_TEXT_SECONDARY
+        halign: 'left'
+        valign: 'middle'
+        text_size: self.size
+
+    Label:
+        text: root.sface_text
+        size_hint_x: 0.25
+        font_name: tokens.FONT_REGULAR
+        font_size: f"{tokens.FONT_SIZE_BODY}sp"
+        color: tokens.COLOR_TEXT_SECONDARY
+        halign: 'left'
+        valign: 'middle'
+        text_size: self.size
+
+    AnchorLayout:
+        size_hint_x: None
+        width: dp(110)
+        anchor_x: 'right'
+        anchor_y: 'center'
+
+        DangerButton:
+            id: btn_delete
+            button_text: 'Delete'
+            size_hint: (None, None)
+            width: dp(92)
+            height: dp(34)
+
+<ManageIdentitiesView>:
     orientation: "vertical"
-    padding: "40dp"
-    spacing: "15dp"
+    padding: [dp(44), dp(32), dp(44), dp(32)]
+    spacing: dp(20)
 
     canvas.before:
         Color:
-            rgba: (0.97, 0.97, 0.97, 1)
+            rgba: tokens.COLOR_BG
         Rectangle:
             pos: self.pos
             size: self.size
 
+    # Top Navigation & Header Bar
     BoxLayout:
         size_hint_y: None
-        height: "50dp"
+        height: dp(48)
+        spacing: dp(18)
 
-        Button:
-            text: '< Back'
-            size_hint_x: None
-            width: '110dp'
-            background_normal: ''
-            background_color: (0.85, 0.85, 0.85, 1)
-            color: (0.1, 0.1, 0.1, 1)
+        BackButton:
+            pos_hint: {'center_y': 0.5}
             on_release: root.go_back()
 
+        BoxLayout:
+            orientation: 'vertical'
+            spacing: dp(2)
+            pos_hint: {'center_y': 0.5}
+
+            Label:
+                text: "IDENTITY REGISTRY"
+                font_name: tokens.FONT_BLACK
+                font_size: f"{tokens.FONT_SIZE_TITLE}sp"
+                color: tokens.COLOR_TEXT_PRIMARY
+                halign: "left"
+                valign: "middle"
+                text_size: self.size
+
+            Label:
+                text: "Local biometric feature templates and enrolled identities"
+                font_name: tokens.FONT_REGULAR
+                font_size: f"{tokens.FONT_SIZE_CAPTION}sp"
+                color: tokens.COLOR_TEXT_SECONDARY
+                halign: "left"
+                valign: "middle"
+                text_size: self.size
+
         Widget:
-            size_hint_x: 1
 
-        Label:
-            text: "Manage Identities"
-            size_hint_x: None
-            width: "220dp"
-            font_size: "24sp"
-            bold: True
-            color: (0, 0, 0, 1)
-            halign: "center"
-            valign: "middle"
-            text_size: self.size
+        StatusBadge:
+            id: identity_badge
+            badge_text: "0 identities"
+            badge_status: "ready"
+            pos_hint: {'center_y': 0.5}
 
-        Widget:
-            size_hint_x: 1
+    # Table Card Container
+    BoxLayout:
+        orientation: "vertical"
+        canvas.before:
+            Color:
+                rgba: tokens.COLOR_SURFACE_1
+            RoundedRectangle:
+                pos: self.pos
+                size: self.size
+                radius: [dp(tokens.RADIUS_LG),]
+        canvas.after:
+            Color:
+                rgba: tokens.COLOR_BORDER
+            Line:
+                rounded_rectangle: (self.x, self.y, self.width, self.height, dp(tokens.RADIUS_LG))
+                width: tokens.BORDER_WIDTH_THIN
 
-        Label:
-            id: identity_count
-            text: "0 identities"
-            size_hint_x: None
-            width: "150dp"
-            color: (0.3, 0.3, 0.3, 1)
-            halign: "right"
-            valign: "middle"
-            text_size: self.size
+        # Pinned Table Header
+        DataTableHeader:
+            padding: [dp(24), 0, dp(24), 0]
+            spacing: dp(12)
 
-    ScrollView:
-        do_scroll_x: False
-        bar_width: "8dp"
-
-        GridLayout:
-            id: identity_table
-
-            cols: 5
-            size_hint_y: None
-            height: self.minimum_height
-
-            # ID Header
             Label:
                 text: "ID"
-                size_hint_y: None
-                height: "45dp"
-                bold: True
-                color: (0, 0, 0, 1)
+                size_hint_x: None
+                width: dp(70)
+                font_name: tokens.FONT_BOLD
+                font_size: f"{tokens.FONT_SIZE_CAPTION}sp"
+                color: tokens.COLOR_TEXT_SECONDARY
+                halign: "left"
+                valign: "middle"
+                text_size: self.size
 
             Label:
-                text: "Name"
-                size_hint_y: None
-                height: "45dp"
-                bold: True
-                color: (0, 0, 0, 1)
+                text: "IDENTITY NAME"
+                size_hint_x: 0.35
+                font_name: tokens.FONT_BOLD
+                font_size: f"{tokens.FONT_SIZE_CAPTION}sp"
+                color: tokens.COLOR_TEXT_SECONDARY
+                halign: "left"
+                valign: "middle"
+                text_size: self.size
 
             Label:
-                text: "LBPH"
-                size_hint_y: None
-                height: "45dp"
-                bold: True
-                color: (0, 0, 0, 1)
+                text: "LBPH SAMPLES"
+                size_hint_x: 0.25
+                font_name: tokens.FONT_BOLD
+                font_size: f"{tokens.FONT_SIZE_CAPTION}sp"
+                color: tokens.COLOR_TEXT_SECONDARY
+                halign: "left"
+                valign: "middle"
+                text_size: self.size
 
             Label:
-                text: "SFace"
-                size_hint_y: None
-                height: "45dp"
-                bold: True
-                color: (0, 0, 0, 1)
+                text: "SFACE EMBEDDINGS"
+                size_hint_x: 0.25
+                font_name: tokens.FONT_BOLD
+                font_size: f"{tokens.FONT_SIZE_CAPTION}sp"
+                color: tokens.COLOR_TEXT_SECONDARY
+                halign: "left"
+                valign: "middle"
+                text_size: self.size
 
             Label:
-                text: "Actions"
+                text: "ACTIONS"
+                size_hint_x: None
+                width: dp(110)
+                font_name: tokens.FONT_BOLD
+                font_size: f"{tokens.FONT_SIZE_CAPTION}sp"
+                color: tokens.COLOR_TEXT_SECONDARY
+                halign: "right"
+                valign: "middle"
+                text_size: self.size
+
+        # Scrollable Rows
+        ScrollView:
+            id: scroll_view
+            do_scroll_x: False
+            bar_width: dp(6)
+            bar_color: tokens.COLOR_ACCENT
+            bar_inactive_color: tokens.COLOR_BORDER
+
+            BoxLayout:
+                id: identity_list
+                orientation: "vertical"
                 size_hint_y: None
-                height: "45dp"
-                bold: True
-                color: (0, 0, 0, 1)
+                height: self.minimum_height

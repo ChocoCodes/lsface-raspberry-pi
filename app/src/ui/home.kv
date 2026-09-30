@@ -1,290 +1,259 @@
 #:kivy 2.3.1
+#:import dp kivy.metrics.dp
 #:import ICONS_PATH src.config.config.ICONS_PATH
 #:import CAMERA_NAMES src.config.config.CAMERA_NAMES
-
-<ActionCard@ButtonBehavior+BoxLayout>:
-    orientation: 'vertical'
-    padding: ['24dp', '24dp', '24dp', '24dp']
-    spacing: '14dp'
-    card_title: ''
-    card_body: ''
-    icon_source: ''
-    canvas.before:
-        Color:
-            rgba: (0.12, 0.16, 0.23, 1) if self.state == 'normal' else (0.16, 0.22, 0.29, 1)
-        RoundedRectangle:
-            pos: self.pos
-            size: self.size
-            radius: [18,]
-
-    AnchorLayout:
-        anchor_x: 'center'
-        anchor_y: 'center'
-        size_hint_y: 1
-
-        BoxLayout:
-            orientation: 'vertical'
-            size_hint: (1, None)
-            height: '184dp'
-            spacing: '14dp'
-
-            Image:
-                source: root.icon_source
-                size_hint_y: None
-                height: '82dp'
-                allow_stretch: True
-                keep_ratio: True
-
-            Label:
-                text: root.card_title
-                size_hint_y: None
-                height: '30dp'
-                font_size: '22sp'
-                bold: True
-                color: (0.93, 0.96, 0.98, 1)
-                halign: 'center'
-                valign: 'middle'
-                text_size: self.size
-
-            Label:
-                text: root.card_body
-                size_hint_y: None
-                height: '44dp'
-                font_size: '14sp'
-                color: (0.66, 0.72, 0.80, 1)
-                halign: 'center'
-                valign: 'middle'
-                text_size: self.size
-
-<HeaderButton@ButtonBehavior+BoxLayout>:
-    orientation: 'horizontal'
-    size_hint_y: None
-    height: '42dp'
-    padding: ['12dp', 0, '12dp', 0]
-    spacing: '8dp'
-    button_text: ''
-    icon_source: ''
-    canvas.before:
-        Color:
-            rgba: (0.12, 0.16, 0.23, 1) if self.state == 'normal' else (0.16, 0.22, 0.29, 1)
-        RoundedRectangle:
-            pos: self.pos
-            size: self.size
-            radius: [11,]
-    canvas.after:
-        Color:
-            rgba: (0.34, 0.46, 0.58, 1)
-        Line:
-            rounded_rectangle: (self.x, self.y, self.width, self.height, 11)
-            width: 1
-
-    Image:
-        source: root.icon_source
-        size_hint: (None, None)
-        size: ('18dp', '18dp')
-        allow_stretch: True
-        keep_ratio: True
-        pos_hint: {'center_y': 0.5}
-
-    Label:
-        text: root.button_text
-        font_size: '13sp'
-        color: (0.93, 0.96, 0.98, 1)
-        halign: 'left'
-        valign: 'middle'
-        text_size: self.size
-
-<HeaderSpinner@Spinner>:
-    size_hint_y: None
-    height: '42dp'
-    background_normal: ''
-    background_color: (0, 0, 0, 0)
-    color: (0.93, 0.96, 0.98, 1)
-    font_size: '13sp'
-    padding: ['12dp', 0, '12dp', 0]
-    halign: 'left'
-    valign: 'middle'
-    text_size: self.size
-    canvas.before:
-        Color:
-            rgba: (0.12, 0.16, 0.23, 1) if self.state == 'normal' else (0.16, 0.22, 0.29, 1)
-        RoundedRectangle:
-            pos: self.pos
-            size: self.size
-            radius: [11,]
-    canvas.after:
-        Color:
-            rgba: (0.34, 0.46, 0.58, 1)
-        Line:
-            rounded_rectangle: (self.x, self.y, self.width, self.height, 11)
-            width: 1
+#:import tokens src.ui.tokens
 
 <HomeScreenView>:
-    orientation: 'vertical'
-    padding: ['48dp', '42dp', '48dp', '38dp']
-    spacing: '24dp'
+    # =========================================================================
+    # ROOT BACKGROUND
+    # =========================================================================
     canvas.before:
         Color:
-            rgba: (0.045, 0.063, 0.094, 1)
+            rgba: tokens.COLOR_BG
         Rectangle:
             pos: self.pos
             size: self.size
 
+    # =========================================================================
+    # MAIN PAGE CONTENT
+    # =========================================================================
     BoxLayout:
-        size_hint_y: None
-        height: '76dp'
-        spacing: '24dp'
+        orientation: 'vertical'
+        size_hint: (1, 1)
+        padding: [dp(48), dp(36), dp(48), dp(32)]
+        spacing: dp(24)
 
+        # Header Bar (Clean branding on left, hamburger menu on right)
         BoxLayout:
-            orientation: 'vertical'
-            spacing: '2dp'
+            size_hint_y: None
+            height: dp(68)
+            spacing: dp(20)
 
+            # Branding (Titles)
             BoxLayout:
-                size_hint_y: None
-                height: '36dp'
-                spacing: '8dp'
-
-                Image:
-                    source: f"{ICONS_PATH}/smart-gate.png"
-                    size_hint_x: None
-                    width: '28dp'
-                    size_hint_y: None
-                    height: '28dp'
-                    allow_stretch: True
-                    keep_ratio: True
-                    pos_hint: {'center_y': 0.5}
+                orientation: 'vertical'
+                spacing: dp(4)
 
                 Label:
                     text: 'Smart Gate'
-                    font_size: '27sp'
-                    bold: True
-                    color: (0.93, 0.96, 0.98, 1)
+                    size_hint_y: None
+                    height: dp(38)
+                    font_name: tokens.FONT_BLACK
+                    font_size: f"{tokens.FONT_SIZE_HERO - 2}sp"
+                    color: tokens.COLOR_ACCENT
                     halign: 'left'
                     valign: 'middle'
                     text_size: self.size
 
+                Label:
+                    text: 'An Edge-Based Facial Recognition System Using LS-Face'
+                    size_hint_y: None
+                    height: dp(26)
+                    font_name: tokens.FONT_BOLD
+                    font_size: f"{tokens.FONT_SIZE_BODY + 1}sp"
+                    bold: True
+                    color: tokens.COLOR_TEXT_SECONDARY
+                    halign: 'left'
+                    valign: 'middle'
+                    text_size: self.size
+
+            Widget:
+
+            # Top-Right Controls: Frameless Hamburger Button
+            BoxLayout:
+                size_hint: (None, None)
+                width: dp(44)
+                height: dp(44)
+                pos_hint: {'center_y': 0.5}
+
+                HamburgerButton:
+                    pos_hint: {'center_y': 0.5}
+                    on_release: root.toggle_sidebar()
+
+        # Spacer
+        Widget:
+            size_hint_y: None
+            height: dp(8)
+
+        # Three Navigation Action Cards
+        BoxLayout:
+            size_hint_y: 1
+            spacing: dp(24)
+
+            AppActionCard:
+                inverted: True
+                card_title: 'Register'
+                card_body: 'Register your face and try the system.\n[color=#C8E6C9][i]No photos stored[/i][/color]'
+                icon_source: f"{ICONS_PATH}/user-plus.png"
+                on_release: root.open_add_identity()
+
+            AppActionCard:
+                card_title: 'Check live access'
+                card_body: 'Walk up to the camera to see instant match results.'
+                icon_source: f"{ICONS_PATH}/scan-text.png"
+                on_release: root.open_recognition()
+
+            AppActionCard:
+                card_title: 'View Database'
+                card_body: 'Check everyone who has already registered today.'
+                icon_source: f"{ICONS_PATH}/user-round-pen.png"
+                on_release: root.open_view_identities()
+
+    # =========================================================================
+    # SIDEBAR BACKDROP (Dimming click-to-dismiss overlay)
+    # =========================================================================
+    SidebarBackdrop:
+        id: sidebar_backdrop
+        size_hint: (1, 1) if root.sidebar_open else (None, None)
+        size: root.size if root.sidebar_open else (0, 0)
+        pos: (0, 0) if root.sidebar_open else (-10000, -10000)
+
+    # =========================================================================
+    # SLIDE-OUT RIGHT SIDEBAR DRAWER (Settings & Hardware)
+    # =========================================================================
+    BoxLayout:
+        id: sidebar
+        orientation: 'vertical'
+        size_hint: (None, 1)
+        width: dp(360)
+        x: root.width
+        padding: [dp(28), dp(28), dp(28), dp(24)]
+        spacing: dp(20)
+        canvas.before:
+            Color:
+                rgba: tokens.COLOR_SURFACE_1
+            Rectangle:
+                pos: self.pos
+                size: self.size
+        canvas.after:
+            Color:
+                rgba: tokens.COLOR_BORDER
+            Line:
+                points: (self.x, self.y, self.x, self.top)
+                width: 1.5
+
+        # Drawer Header
+        BoxLayout:
+            size_hint_y: None
+            height: dp(36)
+            spacing: dp(12)
+
             Label:
-                text: 'An Edge-Based Facial Recognition System Using LS-Face'
-                font_size: '13sp'
-                color: (0.66, 0.72, 0.80, 1)
+                text: 'SYSTEM SETTINGS'
+                font_name: tokens.FONT_BLACK
+                font_size: f"{tokens.FONT_SIZE_SUBTITLE}sp"
+                color: tokens.COLOR_TEXT_PRIMARY
                 halign: 'left'
                 valign: 'middle'
                 text_size: self.size
 
+            CloseIconButton:
+                pos_hint: {'center_y': 0.5}
+                on_release: root.close_sidebar()
+
+        # Divider
+        Widget:
+            size_hint_y: None
+            height: dp(1)
+            canvas:
+                Color:
+                    rgba: tokens.COLOR_BORDER_MUTED
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+
+        # Camera Selector Section
         BoxLayout:
-            size_hint_x: None
-            width: '720dp'
-            spacing: '12dp'
+            orientation: 'vertical'
+            size_hint_y: None
+            height: dp(82)
+            spacing: dp(6)
 
-            BoxLayout:
-                orientation: 'vertical'
-                size_hint_x: None
+            Label:
+                text: 'CAMERA DEVICE'
                 size_hint_y: None
-                width: '248dp'
-                height: '64dp'
-                spacing: '4dp'
-                pos_hint: {'center_y': 0.5}
+                height: dp(16)
+                font_name: tokens.FONT_BOLD
+                font_size: f"{tokens.FONT_SIZE_MICRO}sp"
+                bold: True
+                color: tokens.COLOR_TEXT_MUTED
+                halign: 'left'
+                text_size: self.size
 
-                Label:
-                    text: 'Camera'
-                    size_hint_y: None
-                    height: '18dp'
-                    font_size: '12sp'
-                    color: (0.66, 0.72, 0.80, 1)
-                    halign: 'left'
-                    text_size: self.size
+            AppSpinner:
+                id: camera_selector
+                text: 'Default PC Camera'
+                values: CAMERA_NAMES
+                on_text: root.on_camera_changed(self.text)
 
-                HeaderSpinner:
-                    id: camera_selector
-                    text: 'Default PC Camera'
-                    values: CAMERA_NAMES
-                    on_text: root.on_camera_changed(self.text)
-
-            BoxLayout:
-                orientation: 'vertical'
-                size_hint_x: None
+            Label:
+                text: 'Select video capture device for recognition'
                 size_hint_y: None
-                width: '188dp'
-                height: '64dp'
-                spacing: '4dp'
-                pos_hint: {'center_y': 0.5}
+                height: dp(16)
+                font_name: tokens.FONT_REGULAR
+                font_size: f"{tokens.FONT_SIZE_CAPTION - 1}sp"
+                color: tokens.COLOR_TEXT_SECONDARY
+                halign: 'left'
+                text_size: self.size
 
-                Label:
-                    text: 'Database'
-                    size_hint_y: None
-                    height: '18dp'
-                    font_size: '12sp'
-                    color: (0.66, 0.72, 0.80, 1)
-                    halign: 'left'
-                    text_size: self.size
+        # Database Selector Section
+        BoxLayout:
+            orientation: 'vertical'
+            size_hint_y: None
+            height: dp(82)
+            spacing: dp(6)
 
-                BoxLayout:
-                    size_hint_y: None
-                    height: '42dp'
-                    spacing: '6dp'
-
-                    HeaderSpinner:
-                        id: db_selector
-                        text: 'La Salle Database'
-                        values: root.database_names
-                        size_hint_x: 1
-                        on_text: root.on_database_changed(self.text)
-
-                    HeaderButton:
-                        button_text: 'New'
-                        icon_source: ''
-                        size_hint_x: None
-                        width: '82dp'
-                        on_release: root.open_new_database()
-
-            BoxLayout:
-                orientation: 'vertical'
-                size_hint_x: None
+            Label:
+                text: 'IDENTITY DATABASE'
                 size_hint_y: None
-                width: '224dp'
-                height: '64dp'
-                pos_hint: {'center_y': 0.5}
+                height: dp(16)
+                font_name: tokens.FONT_BOLD
+                font_size: f"{tokens.FONT_SIZE_MICRO}sp"
+                bold: True
+                color: tokens.COLOR_TEXT_MUTED
+                halign: 'left'
+                text_size: self.size
 
-                Widget:
-                    size_hint_y: None
-                    height: '22dp'
+            AppSpinner:
+                id: db_selector
+                text: 'La Salle Database'
+                values: root.database_names
+                size_hint_x: 1
+                on_text: root.on_database_changed(self.text)
 
-                HeaderButton:
-                    button_text: 'Calibrate Pose Detection'
-                    icon_source: f"{ICONS_PATH}/settings.png"
-                    size_hint_x: 1
-                    on_release: root.open_pose_setup()
+            Label:
+                text: 'Active biometric template repository'
+                size_hint_y: None
+                height: dp(16)
+                font_name: tokens.FONT_REGULAR
+                font_size: f"{tokens.FONT_SIZE_CAPTION - 1}sp"
+                color: tokens.COLOR_TEXT_SECONDARY
+                halign: 'left'
+                text_size: self.size
 
-    Widget:
-        size_hint_y: 0.18
+        # Vertical Fill Spacer
+        Widget:
 
-    BoxLayout:
-        size_hint_y: 0.62
-        spacing: '22dp'
+        # Drawer Footer
+        BoxLayout:
+            orientation: 'vertical'
+            size_hint_y: None
+            height: dp(40)
+            spacing: dp(2)
 
-        ActionCard:
-            card_title: 'Add Identity'
-            card_body: 'Guided PnP pose scan\nFive positions. No photos saved.'
-            icon_source: f"{ICONS_PATH}/user-plus.png"
-            on_release: root.open_add_identity()
+            Label:
+                text: 'LS-Face Edge v2.1 • USLS CV'
+                font_name: tokens.FONT_BOLD
+                font_size: f"{tokens.FONT_SIZE_CAPTION}sp"
+                color: tokens.COLOR_ACCENT
+                halign: 'left'
+                text_size: self.size
 
-        ActionCard:
-            card_title: 'Live Recognition'
-            card_body: 'Open the current live recognition view.'
-            icon_source: f"{ICONS_PATH}/scan-text.png"
-            on_release: root.open_recognition()
-
-        ActionCard:
-            card_title: 'View Identities'
-            card_body: 'Check the local identity database.'
-            icon_source: f"{ICONS_PATH}/user-round-pen.png"
-            on_release: root.open_view_identities()
-
-    Label:
-        text: 'One participant at a time. Preview mirroring never changes pose direction.'
-        size_hint_y: None
-        height: '24dp'
-        font_size: '12sp'
-        color: (0.50, 0.56, 0.65, 1)
-        halign: 'center'
-        text_size: self.size
+            Label:
+                text: 'Raspberry Pi 5 + Pi Camera compatible'
+                font_name: tokens.FONT_REGULAR
+                font_size: f"{tokens.FONT_SIZE_MICRO}sp"
+                color: tokens.COLOR_TEXT_MUTED
+                halign: 'left'
+                text_size: self.size
