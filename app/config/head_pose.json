@@ -17,10 +17,10 @@
   "stable_hold_s": 0.5,
   "smoothing_s": 0.15,
   "max_gap_s": 0.4,
-  "pose_hz": 12.0,
+  "pose_hz": 15.0,
   "manual_timeout_s": 10.0,
   "preview_mirror": true,
-  "detector": {"model": "models/face_detection_yunet_2023mar.onnx", "score": 0.6, "nms": 0.3, "top_k": 5000, "max_side": 640, "min_face_px": 60},
+  "detector": {"model": "models/face_detection_yunet_2023mar.onnx", "score": 0.6, "nms": 0.3, "top_k": 5000, "max_side": 320, "min_face_px": 30},
   "crop_scale": 1.2,
   "adas_xml": "models/head_pose/head-pose-estimation-adas-0001.xml",
   "calibration": {"backend": null, "source": "unverified defaults; guided calibration required", "time": null, "camera_resolution": null, "statistics": {}}

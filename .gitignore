@@ -8,8 +8,16 @@ ex-*.py
 enrollment/
 
 # Local pose experiments and generated optional models.
+.codegraph/
 logs/
 models/head_pose/
 app/config/head_pose.local*.json
 
 .env
+.venv-pose*/
+
+# Local editor and CodeGraph state.
+.vscode/
+.codegraph/
+/test/automated
+.venv

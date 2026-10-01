@@ -2,22 +2,43 @@
 from __future__ import annotations
 
 import io
+import os
+from pathlib import Path
+import sys
 import unittest
 from unittest.mock import MagicMock, patch
 import wave
 
 import numpy as np
 
-from app.src.engine.speech_transcriber import (
-    FasterWhisperAdapter,
-    GroqWhisperAdapter,
-    HybridSpeechTranscriber,
-    TranscriptionResult,
-    clean_transcribed_name,
-    pcm16_to_wav,
-)
-from app.src.engine.audio_input import OptionalAudioInput
-from app.src.views.voice_recognition import VoiceRecognitionScreen
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+if str(PROJECT_ROOT / "app") not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT / "app"))
+
+try:
+    from app.src.engine.speech_transcriber import (
+        FasterWhisperAdapter,
+        GroqWhisperAdapter,
+        HybridSpeechTranscriber,
+        TranscriptionResult,
+        clean_transcribed_name,
+        pcm16_to_wav,
+    )
+    from app.src.engine.audio_input import OptionalAudioInput
+    from app.src.views.voice_recognition import VoiceRecognitionScreen
+except ImportError:
+    from src.engine.speech_transcriber import (
+        FasterWhisperAdapter,
+        GroqWhisperAdapter,
+        HybridSpeechTranscriber,
+        TranscriptionResult,
+        clean_transcribed_name,
+        pcm16_to_wav,
+    )
+    from src.engine.audio_input import OptionalAudioInput
+    from src.views.voice_recognition import VoiceRecognitionScreen
 
 
 class SpeechTranscriberCleaningTests(unittest.TestCase):
@@ -57,8 +78,9 @@ class GroqWhisperAdapterTests(unittest.TestCase):
         self.assertEqual(adapter2.model, "whisper-large-v3-turbo")
 
     def test_availability(self):
-        adapter_no_key = GroqWhisperAdapter(api_key=None)
-        self.assertFalse(adapter_no_key.is_available)
+        with patch.dict(os.environ, {"GROQ_API_KEY": ""}):
+            adapter_no_key = GroqWhisperAdapter(api_key=None)
+            self.assertFalse(adapter_no_key.is_available)
 
         adapter_with_key = GroqWhisperAdapter(api_key="gsk_valid_key_format")
         self.assertTrue(adapter_with_key.is_available)

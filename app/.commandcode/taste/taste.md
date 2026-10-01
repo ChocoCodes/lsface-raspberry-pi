@@ -1,0 +1,2 @@
+- Prefers clean commit messages without `Co-authored-by` trailers. Confidence: 0.8
+- Prefers minimal, surgical changes without additional testing, linting, or scope expansion — only the specifically requested edit, no extra verification steps. Confidence: 0.9

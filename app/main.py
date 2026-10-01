@@ -11,6 +11,12 @@ APP_ROOT = Path(__file__).resolve().parent
 if str(APP_ROOT) not in sys.path:
     sys.path.insert(0, str(APP_ROOT))
 
+try:
+    from src.engine.speech_transcriber import load_dotenv
+    load_dotenv()
+except Exception:
+    pass
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -22,6 +28,9 @@ def run_kivy(options) -> int:
     from kivy.app import App
     from kivy.core.window import Window
     from kivy.uix.screenmanager import FadeTransition, ScreenManager
+
+    from src.ui import load_design_system, tokens
+    load_design_system()
 
     from src.views.home import HomeScreen
     from src.views.identities import ManageIdentitiesScreen
@@ -37,7 +46,7 @@ def run_kivy(options) -> int:
             self.pose_options = options
             Window.fullscreen = False
             Window.position = 'auto'
-            Window.clearcolor = (0.045, 0.063, 0.094, 1)
+            Window.clearcolor = tokens.COLOR_BG
             Window.size = (1280, 720)
             manager = ScreenManager(transition=FadeTransition(duration=0.15))
             manager.add_widget(HomeScreen(name="home"))
