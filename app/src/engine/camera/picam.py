@@ -66,9 +66,9 @@ class PiCamera(Camera):
         while self._running:
             try:
                 # capture_array() blocks until next ISP frame — fine on a thread.
-                rgb = self.picam2.capture_array()
-                # RGB888 → BGR, ensure C-contiguous layout for OpenCV/blit_buffer.
-                bgr = rgb[:, :, ::-1].copy()
+                # Picamera2/libcamera RGB888 stores bytes in B, G, R order.
+                # Reversing them here makes both OpenCV input and preview blue.
+                bgr = np.array(self.picam2.capture_array(), copy=True, order="C")
                 with self._lock:
                     self._latest = bgr
                     self._frame_count += 1
