@@ -18,6 +18,8 @@ urllib3==2.7.0
 # Speech-to-text models and cloud adapters
 groq>=0.11.0
 faster-whisper>=1.0.0
+sounddevice>=0.4.6
+
 
 # Raspberry Pi only; install through the platform package manager when using
 # the Raspberry Pi camera option.

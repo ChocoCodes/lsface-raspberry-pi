@@ -1,35 +1,85 @@
-from pathlib import Path
-
+from kivy.animation import Animation
 from kivy.app import App
 from kivy.uix.button import Button
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 from kivy.uix.screenmanager import Screen
 from kivy.uix.textinput import TextInput
+from kivy.uix.widget import Widget
 from kivy.lang import Builder
-from kivy.properties import ListProperty, StringProperty
+from kivy.properties import BooleanProperty, ListProperty
 
 from src.config.config import KV_PATH
 from src.engine.database.database_manager import DatabaseManager
 
-from src.pose_detection.flow import pnp_profile_problem
-from src.pose_detection.head_pose import load_config
+
+class SidebarBackdrop(Widget):
+    """Semi-transparent backdrop that only intercepts touches when sidebar is open."""
+
+    def on_touch_down(self, touch):
+        parent = self.parent
+        if not getattr(parent, "sidebar_open", False):
+            return False
+        if self.collide_point(*touch.pos):
+            sidebar = getattr(parent.ids, "sidebar", None) if hasattr(parent, "ids") else None
+            if sidebar and sidebar.collide_point(*touch.pos):
+                return False
+            parent.close_sidebar()
+            return True
+        return False
+
 
 Builder.load_file(str(KV_PATH / 'home.kv'))
 
-class HomeScreenView(BoxLayout):
-    pose_status = StringProperty("Checking device setup…")
+class HomeScreenView(FloatLayout):
     database_names = ListProperty([])
+    sidebar_open = BooleanProperty(False)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._database_ids = {}
         self._syncing_database_selector = False
+        self.bind(size=self._on_resize)
+
+    def _on_resize(self, *_):
+        if hasattr(self, 'ids') and 'sidebar' in self.ids:
+            if self.sidebar_open:
+                self.ids.sidebar.x = self.width - self.ids.sidebar.width
+            else:
+                self.ids.sidebar.x = self.width
+
+    def toggle_sidebar(self):
+        if self.sidebar_open:
+            self.close_sidebar()
+        else:
+            self.open_sidebar()
+
+    def open_sidebar(self):
+        self.sidebar_open = True
+        sidebar = self.ids.sidebar
+        backdrop = self.ids.sidebar_backdrop
+        Animation.stop_all(sidebar)
+        Animation.stop_all(backdrop)
+        anim_sidebar = Animation(x=self.width - sidebar.width, d=0.25, t="out_cubic")
+        anim_backdrop = Animation(opacity=1.0, d=0.25, t="out_cubic")
+        anim_sidebar.start(sidebar)
+        anim_backdrop.start(backdrop)
+
+    def close_sidebar(self):
+        self.sidebar_open = False
+        sidebar = self.ids.sidebar
+        backdrop = self.ids.sidebar_backdrop
+        Animation.stop_all(sidebar)
+        Animation.stop_all(backdrop)
+        anim_sidebar = Animation(x=self.width, d=0.22, t="out_cubic")
+        anim_backdrop = Animation(opacity=0.0, d=0.22, t="out_cubic")
+        anim_sidebar.start(sidebar)
+        anim_backdrop.start(backdrop)
 
     def on_kv_post(self, *_args):
         self.refresh_databases()
-        self.refresh_pose_status()
 
     def on_camera_changed(self, camera_name):
         print(f"[EVENT] Selected Camera: {camera_name}")
@@ -61,25 +111,48 @@ class HomeScreenView(BoxLayout):
             self._syncing_database_selector = False
 
     def open_new_database(self):
-        content = BoxLayout(orientation="vertical", padding=14, spacing=10)
+        from src.ui import tokens
+        content = BoxLayout(orientation="vertical", padding=16, spacing=10)
         name_input = TextInput(
             hint_text="Database name",
             multiline=False,
             size_hint_y=None,
             height="42dp",
+            background_normal="",
+            background_active="",
+            background_color=tokens.COLOR_SURFACE_2,
+            foreground_color=tokens.COLOR_TEXT_PRIMARY,
+            hint_text_color=tokens.COLOR_TEXT_MUTED,
+            cursor_color=tokens.COLOR_ACCENT,
+            padding=["12dp", "10dp"],
         )
-        error_label = Label(text="", color=(0.75, 0.20, 0.20, 1))
-        actions = BoxLayout(size_hint_y=None, height="44dp", spacing=8)
-        cancel = Button(text="Cancel")
-        create = Button(text="Create")
+        error_label = Label(text="", color=tokens.COLOR_ERROR, font_size="12sp")
+        actions = BoxLayout(size_hint_y=None, height="40dp", spacing=10)
+        cancel = Button(
+            text="Cancel",
+            background_normal="",
+            background_color=tokens.COLOR_SURFACE_2,
+            color=tokens.COLOR_TEXT_PRIMARY,
+        )
+        create = Button(
+            text="Create",
+            background_normal="",
+            background_color=tokens.COLOR_ACCENT,
+            color=tokens.COLOR_TEXT_ON_ACCENT,
+            bold=True,
+        )
         actions.add_widget(cancel)
         actions.add_widget(create)
-        content.add_widget(Label(text="Create an isolated database for a fresh test."))
+        content.add_widget(Label(text="Create an isolated database for a fresh test.", color=tokens.COLOR_TEXT_SECONDARY))
         content.add_widget(name_input)
         content.add_widget(error_label)
         content.add_widget(actions)
         popup = Popup(
-            title="New database",
+            title="New Database",
+            title_color=tokens.COLOR_TEXT_PRIMARY,
+            separator_color=tokens.COLOR_ACCENT,
+            background="",
+            background_color=tokens.COLOR_SURFACE_1,
             content=content,
             size_hint=(None, None),
             size=(460, 240),
@@ -126,17 +199,6 @@ class HomeScreenView(BoxLayout):
         pose_screen.camera_mode = self.ids.camera_selector.text
         app.root.current = "pose_setup"
 
-    def refresh_pose_status(self):
-        app_root = Path(__file__).resolve().parents[2]
-        profile = app_root / "config" / "head_pose.local.json"
-        try:
-            config = load_config(profile if profile.exists() else app_root / "config" / "head_pose.json")
-            config["backend"] = "yunet_geometry"
-            self.pose_status = "POSE READY" if pnp_profile_problem(config, "yunet_geometry") is None else "SETUP REQUIRED"
-        except Exception:
-            self.pose_status = "SETUP REQUIRED"
-
-
 
 class HomeScreen(Screen):
     """Screen wrapper so HomeScreenView (a plain BoxLayout, per home.kv's
@@ -157,7 +219,6 @@ class HomeScreen(Screen):
             self.load_database(database_id=selected_id)
         else:
             self.view.refresh_databases(selected_id)
-        self.view.refresh_pose_status()
 
     def load_database(self, db_name: str | None = None, *, database_id: str | None = None):
         if database_id is None:

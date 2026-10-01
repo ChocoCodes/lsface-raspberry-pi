@@ -1,6 +1,8 @@
 import inspect
+import logging
 import time
 import cv2 as cv
+import numpy as np
 
 from kivy.app import App
 from kivy.clock import Clock
@@ -22,6 +24,8 @@ from src.engine.build_cascade import (
 )
 
 Builder.load_file(str(KV_PATH / 'recognition.kv'))
+
+_log = logging.getLogger(__name__)
 
 CHOICE = "2"  # new setup / r3_n8_g6x6, quality-first -> recognition mode
 
@@ -46,6 +50,11 @@ class RecognitionScreen(Screen):
         self._active_session_id = None
         self._active_database_id = ""
         self._database_route_note = ""
+        self._camera_texture = None          # reused across frames
+        self._flip_buf: "np.ndarray | None" = None   # pre-allocated flip destination
+        self._blit_buf: "bytearray | None" = None    # pre-allocated blit buffer
+        self._display_frame_count = 0        # for periodic FPS logging
+        self._display_fps_t = 0.0
 
     def configure_session(self, database_id, expected_identity_name, session_id=None):
         """Set voice-enrollment context before entering live recognition."""
@@ -221,10 +230,40 @@ class RecognitionScreen(Screen):
         self.frame_count += 1
         self._display_frame(frame_bgr)
 
-    def _display_frame(self, frame_bgr):
-        buf = cv.flip(frame_bgr, 0).tobytes()
-        texture = Texture.create(
-            size=(frame_bgr.shape[1], frame_bgr.shape[0]), colorfmt="bgr"
+    def _display_frame(self, frame_bgr: np.ndarray):
+        h, w = frame_bgr.shape[:2]
+
+        # Lazily allocate (or reallocate on resolution change) persistent buffers.
+        # After the first frame these are reused every tick — zero heap allocation.
+        if self._flip_buf is None or self._flip_buf.shape != frame_bgr.shape:
+            self._flip_buf = np.empty_like(frame_bgr)
+            self._blit_buf = bytearray(h * w * 3)
+
+        # Vertical flip only (Kivy's texture origin is bottom-left).
+        # Recognition view doesn't mirror; flip_code=0 = vertical only.
+        cv.flip(frame_bgr, 0, dst=self._flip_buf)
+
+        if self._camera_texture is None or self._camera_texture.size != (w, h):
+            _log.info("[RecognitionScreen] Creating texture %dx%d", w, h)
+            self._camera_texture = Texture.create(size=(w, h), colorfmt="bgr")
+            self.ids.camera_feed.texture = self._camera_texture
+            self._blit_buf = bytearray(h * w * 3)
+
+        # Zero-copy blit: np.copyto into memoryview avoids creating a Python bytes object.
+        np.copyto(
+            np.frombuffer(self._blit_buf, dtype=np.uint8).reshape(h, w, 3),
+            self._flip_buf,
         )
-        texture.blit_buffer(buf, colorfmt="bgr", bufferfmt="ubyte")
-        self.ids.camera_feed.texture = texture
+        self._camera_texture.blit_buffer(self._blit_buf, colorfmt="bgr", bufferfmt="ubyte")
+
+        # Periodic display FPS logging (every 5 s)
+        self._display_frame_count += 1
+        now = time.monotonic()
+        if self._display_fps_t == 0.0:
+            self._display_fps_t = now
+        elif now - self._display_fps_t >= 5.0:
+            elapsed = now - self._display_fps_t
+            fps = self._display_frame_count / elapsed
+            _log.info("[RecognitionScreen] Display FPS: %.1f over last %.1fs", fps, elapsed)
+            self._display_frame_count = 0
+            self._display_fps_t = now

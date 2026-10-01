@@ -1,0 +1,722 @@
+#:kivy 2.3.0
+#:import dp kivy.metrics.dp
+#:import tokens src.ui.tokens
+
+# ==============================================================================
+# BASE CONTAINERS & SURFACES
+# ==============================================================================
+
+<AppScreen@FloatLayout>:
+    canvas.before:
+        Color:
+            rgba: tokens.COLOR_BG
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+<AppCard@BoxLayout>:
+    orientation: 'vertical'
+    canvas.before:
+        Color:
+            rgba: tokens.SHADOW_COLOR_SOFT
+        BoxShadow:
+            pos: self.pos
+            size: self.size
+            offset: 0, dp(tokens.SHADOW_OFFSET_REST_Y)
+            blur_radius: dp(tokens.SHADOW_BLUR_REST)
+            spread_radius: 0, 0
+            border_radius: dp(tokens.RADIUS_LG), dp(tokens.RADIUS_LG), dp(tokens.RADIUS_LG), dp(tokens.RADIUS_LG)
+        Color:
+            rgba: tokens.COLOR_SURFACE_1
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [dp(tokens.RADIUS_LG),]
+    canvas.after:
+        Color:
+            rgba: tokens.COLOR_BORDER
+        Line:
+            rounded_rectangle: (self.x, self.y, self.width, self.height, dp(tokens.RADIUS_LG))
+            width: tokens.BORDER_WIDTH_THIN
+
+<VideoViewport@BoxLayout>:
+    padding: [dp(4), dp(4), dp(4), dp(4)]
+    canvas.before:
+        Color:
+            rgba: tokens.COLOR_VIEWPORT_BG
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [dp(tokens.RADIUS_LG),]
+    canvas.after:
+        Color:
+            rgba: tokens.COLOR_BORDER
+        Line:
+            rounded_rectangle: (self.x, self.y, self.width, self.height, dp(tokens.RADIUS_LG))
+            width: tokens.BORDER_WIDTH_THIN
+
+# ==============================================================================
+# BUTTONS
+# ==============================================================================
+
+<PrimaryButton@ButtonBehavior+BoxLayout>:
+    orientation: 'horizontal'
+    size_hint_y: None
+    height: dp(tokens.HEIGHT_BUTTON_MD)
+    padding: [dp(16), 0, dp(16), 0]
+    spacing: dp(8)
+    button_text: ''
+    icon_source: ''
+    disabled: False
+    canvas.before:
+        Color:
+            rgba: (tokens.COLOR_SURFACE_2 if self.disabled else (tokens.COLOR_ACCENT_PRESSED if self.state == 'down' else tokens.COLOR_ACCENT))
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [dp(tokens.RADIUS_MD),]
+    canvas.after:
+        Color:
+            rgba: (tokens.COLOR_TRANSPARENT if self.disabled else (tokens.COLOR_ACCENT_HOVER if self.state == 'normal' else tokens.COLOR_ACCENT_PRESSED))
+        Line:
+            rounded_rectangle: (self.x, self.y, self.width, self.height, dp(tokens.RADIUS_MD))
+            width: tokens.BORDER_WIDTH_THIN
+
+    AnchorLayout:
+        anchor_x: 'center'
+        anchor_y: 'center'
+        BoxLayout:
+            size_hint: (None, 1)
+            width: self.minimum_width
+            spacing: dp(8)
+
+            Image:
+                source: root.icon_source
+                size_hint: (None, None)
+                size: (dp(18), dp(18))
+                pos_hint: {'center_y': 0.5}
+                color: tokens.COLOR_TEXT_ON_ACCENT
+                opacity: 1.0 if root.icon_source else 0.0
+                width: dp(18) if root.icon_source else 0
+
+            Label:
+                text: root.button_text
+                size_hint_x: None
+                width: self.texture_size[0]
+                font_size: f"{tokens.FONT_SIZE_BODY}sp"
+                bold: True
+                color: tokens.COLOR_TEXT_DISABLED if root.disabled else tokens.COLOR_TEXT_ON_ACCENT
+                halign: 'center'
+                valign: 'middle'
+
+<SecondaryButton@ButtonBehavior+BoxLayout>:
+    orientation: 'horizontal'
+    size_hint_y: None
+    height: dp(tokens.HEIGHT_BUTTON_MD)
+    padding: [dp(14), 0, dp(14), 0]
+    spacing: dp(8)
+    button_text: ''
+    icon_source: ''
+    disabled: False
+    canvas.before:
+        Color:
+            rgba: (tokens.COLOR_SURFACE_2 if self.disabled else (tokens.COLOR_SURFACE_3 if self.state == 'down' else tokens.COLOR_SURFACE_1))
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [dp(tokens.RADIUS_MD),]
+    canvas.after:
+        Color:
+            rgba: (tokens.COLOR_BORDER_MUTED if self.disabled else (tokens.COLOR_ACCENT if self.state == 'down' else tokens.COLOR_BORDER_LIGHT))
+        Line:
+            rounded_rectangle: (self.x, self.y, self.width, self.height, dp(tokens.RADIUS_MD))
+            width: tokens.BORDER_WIDTH_THIN
+
+    AnchorLayout:
+        anchor_x: 'center'
+        anchor_y: 'center'
+        BoxLayout:
+            size_hint: (None, 1)
+            width: self.minimum_width
+            spacing: dp(8)
+
+            Image:
+                source: root.icon_source
+                size_hint: (None, None)
+                size: (dp(18), dp(18))
+                pos_hint: {'center_y': 0.5}
+                color: tokens.COLOR_TEXT_PRIMARY
+                opacity: 1.0 if root.icon_source else 0.0
+                width: dp(18) if root.icon_source else 0
+
+            Label:
+                text: root.button_text
+                size_hint_x: None
+                width: self.texture_size[0]
+                font_size: f"{tokens.FONT_SIZE_BODY}sp"
+                bold: True
+                color: tokens.COLOR_TEXT_DISABLED if root.disabled else tokens.COLOR_TEXT_PRIMARY
+                halign: 'center'
+                valign: 'middle'
+
+<DangerButton@ButtonBehavior+BoxLayout>:
+    orientation: 'horizontal'
+    size_hint_y: None
+    height: dp(tokens.HEIGHT_BUTTON_MD)
+    padding: [dp(14), 0, dp(14), 0]
+    spacing: dp(8)
+    button_text: ''
+    icon_source: ''
+    disabled: False
+    canvas.before:
+        Color:
+            rgba: (0.96, 0.88, 0.88, 1.0) if self.state == 'down' else tokens.COLOR_TRANSPARENT
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [dp(tokens.RADIUS_MD),]
+    canvas.after:
+        Color:
+            rgba: tokens.COLOR_ERROR if self.state == 'down' else (0.85, 0.20, 0.20, 0.40)
+        Line:
+            rounded_rectangle: (self.x, self.y, self.width, self.height, dp(tokens.RADIUS_MD))
+            width: tokens.BORDER_WIDTH_THIN
+
+    AnchorLayout:
+        anchor_x: 'center'
+        anchor_y: 'center'
+        BoxLayout:
+            size_hint: (None, 1)
+            width: self.minimum_width
+            spacing: dp(8)
+
+            Label:
+                text: root.button_text
+                size_hint_x: None
+                width: self.texture_size[0]
+                font_size: f"{tokens.FONT_SIZE_BODY}sp"
+                bold: True
+                color: tokens.COLOR_ERROR
+                halign: 'center'
+                valign: 'middle'
+
+<BackButton@ButtonBehavior+BoxLayout>:
+    orientation: 'horizontal'
+    size_hint: (None, None)
+    width: dp(100)
+    height: dp(tokens.HEIGHT_BUTTON_MD)
+    padding: [dp(12), 0, dp(12), 0]
+    spacing: dp(6)
+    button_text: '‹  Back'
+    canvas.before:
+        Color:
+            rgba: tokens.COLOR_SURFACE_3 if self.state == 'down' else tokens.COLOR_SURFACE_1
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [dp(tokens.RADIUS_MD),]
+    canvas.after:
+        Color:
+            rgba: tokens.COLOR_BORDER_LIGHT
+        Line:
+            rounded_rectangle: (self.x, self.y, self.width, self.height, dp(tokens.RADIUS_MD))
+            width: tokens.BORDER_WIDTH_THIN
+
+    Label:
+        text: root.button_text
+        font_size: f"{tokens.FONT_SIZE_BODY}sp"
+        bold: True
+        color: tokens.COLOR_TEXT_PRIMARY
+        halign: 'center'
+        valign: 'middle'
+        text_size: self.size
+
+<GhostButton@ButtonBehavior+BoxLayout>:
+    orientation: 'horizontal'
+    size_hint_y: None
+    height: dp(tokens.HEIGHT_BUTTON_MD)
+    padding: [dp(12), 0, dp(12), 0]
+    button_text: ''
+    canvas.before:
+        Color:
+            rgba: tokens.COLOR_SURFACE_2 if self.state == 'down' else tokens.COLOR_TRANSPARENT
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [dp(tokens.RADIUS_MD),]
+
+    Label:
+        text: root.button_text
+        font_size: f"{tokens.FONT_SIZE_BODY}sp"
+        bold: True
+        color: tokens.COLOR_TEXT_SECONDARY if self.state == 'normal' else tokens.COLOR_TEXT_PRIMARY
+        halign: 'center'
+        valign: 'middle'
+        text_size: self.size
+
+<HamburgerButton@ButtonBehavior+BoxLayout>:
+    size_hint: (None, None)
+    size: (dp(44), dp(44))
+    canvas.after:
+        Color:
+            rgba: tokens.COLOR_ACCENT if self.state == 'down' else tokens.COLOR_TEXT_PRIMARY
+        Line:
+            points: (self.x + dp(6), self.center_y + dp(7), self.right - dp(6), self.center_y + dp(7))
+            width: 2.2
+            cap: 'round'
+        Line:
+            points: (self.x + dp(6), self.center_y, self.right - dp(6), self.center_y)
+            width: 2.2
+            cap: 'round'
+        Line:
+            points: (self.x + dp(6), self.center_y - dp(7), self.right - dp(6), self.center_y - dp(7))
+            width: 2.2
+            cap: 'round'
+
+<CloseIconButton@ButtonBehavior+BoxLayout>:
+    size_hint: (None, None)
+    size: (dp(32), dp(32))
+    canvas.before:
+        Color:
+            rgba: tokens.COLOR_SURFACE_3 if self.state == 'down' else tokens.COLOR_SURFACE_2
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [dp(tokens.RADIUS_SM),]
+    canvas.after:
+        Color:
+            rgba: tokens.COLOR_ACCENT if self.state == 'down' else tokens.COLOR_TEXT_PRIMARY
+        Line:
+            points: (self.center_x - dp(5.5), self.center_y - dp(5.5), self.center_x + dp(5.5), self.center_y + dp(5.5))
+            width: 2.0
+            cap: 'round'
+        Line:
+            points: (self.center_x - dp(5.5), self.center_y + dp(5.5), self.center_x + dp(5.5), self.center_y - dp(5.5))
+            width: 2.0
+            cap: 'round'
+
+<QuietStartButton@ButtonBehavior+Widget>:
+    size_hint: (None, None)
+    size: (dp(46), dp(46))
+    disabled: False
+    canvas.before:
+        Color:
+            rgba: (tokens.COLOR_ACCENT_GLOW if self.state == 'down' else (1.0, 1.0, 1.0, 0.88))
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [dp(23),]
+        Color:
+            rgba: (tokens.COLOR_ACCENT if self.state == 'down' else tokens.COLOR_BORDER_LIGHT)
+        Line:
+            rounded_rectangle: (self.x, self.y, self.width, self.height, dp(23))
+            width: tokens.BORDER_WIDTH_THIN
+    canvas.after:
+        Color:
+            rgba: (tokens.COLOR_ACCENT_PRESSED if self.state == 'down' else tokens.COLOR_ACCENT) if not self.disabled else tokens.COLOR_TEXT_DISABLED
+        Triangle:
+            points: [self.center_x - dp(4.5), self.center_y - dp(7.5), self.center_x + dp(6.5), self.center_y, self.center_x - dp(4.5), self.center_y + dp(7.5)]
+
+<QuietRestartButton@ButtonBehavior+Widget>:
+    size_hint: (None, None)
+    size: (dp(46), dp(46))
+    disabled: False
+    canvas.before:
+        Color:
+            rgba: (tokens.COLOR_SURFACE_3 if self.state == 'down' else (1.0, 1.0, 1.0, 0.88))
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [dp(23),]
+        Color:
+            rgba: (tokens.COLOR_TEXT_SECONDARY if self.state == 'down' else tokens.COLOR_BORDER)
+        Line:
+            rounded_rectangle: (self.x, self.y, self.width, self.height, dp(23))
+            width: tokens.BORDER_WIDTH_THIN
+    canvas.after:
+        Color:
+            rgba: (tokens.COLOR_TEXT_PRIMARY if self.state == 'down' else tokens.COLOR_TEXT_SECONDARY) if not self.disabled else tokens.COLOR_TEXT_DISABLED
+        Line:
+            circle: (self.center_x, self.center_y, dp(8.5), 35, 315)
+            width: dp(2.0)
+            cap: 'round'
+        Line:
+            points: [self.center_x + dp(8.5), self.center_y + dp(10.5), self.center_x + dp(8.5), self.center_y + dp(4.5), self.center_x + dp(2.5), self.center_y + dp(4.5)]
+            width: dp(2.0)
+            cap: 'round'
+            joint: 'round'
+
+<StatusDot@Widget>:
+    size_hint: (None, None)
+    size: (dp(14), dp(14))
+    dot_status: 'ready'   # 'ready' | 'live' | 'warning' | 'error'
+    canvas:
+        Color:
+            rgba: (tokens.COLOR_SUCCESS_TINT if root.dot_status in ('ready', 'live') else (tokens.COLOR_WARNING_TINT if root.dot_status == 'warning' else tokens.COLOR_ERROR_TINT))
+        Ellipse:
+            pos: (self.center_x - dp(6), self.center_y - dp(6))
+            size: (dp(12), dp(12))
+        Color:
+            rgba: (tokens.COLOR_SUCCESS if root.dot_status in ('ready', 'live') else (tokens.COLOR_WARNING if root.dot_status == 'warning' else tokens.COLOR_ERROR))
+        Ellipse:
+            pos: (self.center_x - dp(4), self.center_y - dp(4))
+            size: (dp(8), dp(8))
+
+<SidebarBackdrop>:
+    opacity: 0.0
+    canvas.before:
+        Color:
+            rgba: (0.05, 0.08, 0.12, 0.45)
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+# ==============================================================================
+# ACTION CARD (Dashboard / Home Screen Navigation)
+# ==============================================================================
+
+<AppActionCard>:
+    orientation: 'vertical'
+    padding: [dp(24), dp(20), dp(24), dp(24)]
+    spacing: dp(10)
+    canvas.before:
+        PushMatrix
+        Translate:
+            y: root.hover_lift
+        Color:
+            rgba: root.shadow_color
+        BoxShadow:
+            pos: self.pos
+            size: self.size
+            offset: 0, root.shadow_offset_y
+            blur_radius: root.shadow_blur
+            spread_radius: 0, 0
+            border_radius: dp(tokens.RADIUS_LG), dp(tokens.RADIUS_LG), dp(tokens.RADIUS_LG), dp(tokens.RADIUS_LG)
+        Color:
+            rgba: ((tokens.COLOR_ACCENT_HOVER if self.state == 'down' else (tokens.COLOR_ACCENT_HOVER if root.hovered else tokens.COLOR_ACCENT)) if root.inverted else (tokens.COLOR_SURFACE_3 if self.state == 'down' else (tokens.COLOR_SURFACE_HOVER if root.hovered else tokens.COLOR_SURFACE_1)))
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [dp(tokens.RADIUS_LG),]
+    canvas.after:
+        Color:
+            rgba: ((tokens.COLOR_ACCENT_PRESSED if self.state == 'down' else (tokens.COLOR_ACCENT if root.hovered else (1.0, 1.0, 1.0, 0.25))) if root.inverted else ((tokens.COLOR_ACCENT_PRESSED if self.state == 'down' else (tokens.COLOR_ACCENT if root.hovered else tokens.COLOR_ACCENT_BORDER)) if root.is_primary else (tokens.COLOR_ACCENT if self.state == 'down' else (tokens.COLOR_BORDER_LIGHT if root.hovered else tokens.COLOR_BORDER))))
+        Line:
+            rounded_rectangle: (self.x, self.y, self.width, self.height, dp(tokens.RADIUS_LG))
+            width: tokens.BORDER_WIDTH_FOCUS if self.state == 'down' else tokens.BORDER_WIDTH_THIN
+        PopMatrix
+
+    AnchorLayout:
+        anchor_x: 'center'
+        anchor_y: 'center'
+        size_hint_y: 1
+
+        BoxLayout:
+            orientation: 'vertical'
+            size_hint: (1, None)
+            height: dp(216)
+            spacing: dp(10)
+
+            # Primary Indicator Badge Slot (Equalized fixed height across cards)
+            AnchorLayout:
+                anchor_x: 'center'
+                anchor_y: 'center'
+                size_hint_y: None
+                height: dp(24)
+
+                BoxLayout:
+                    size_hint: (None, None)
+                    size: (self.minimum_width, dp(22))
+                    padding: [dp(8), dp(2), dp(8), dp(2)]
+                    spacing: dp(5)
+                    opacity: 1.0 if root.badge_text else 0.0
+
+                    canvas.before:
+                        Color:
+                            rgba: (1.0, 1.0, 1.0, 0.15) if root.inverted else tokens.COLOR_ACCENT_TINT
+                        RoundedRectangle:
+                            pos: self.pos
+                            size: self.size
+                            radius: [dp(tokens.RADIUS_PILL),]
+                    canvas.after:
+                        Color:
+                            rgba: (1.0, 1.0, 1.0, 0.35) if root.inverted else (tokens.COLOR_ACCENT if root.hovered else tokens.COLOR_ACCENT_BORDER)
+                        Line:
+                            rounded_rectangle: (self.x, self.y, self.width, self.height, dp(tokens.RADIUS_PILL))
+                            width: tokens.BORDER_WIDTH_THIN
+
+                    Widget:
+                        size_hint: (None, None)
+                        size: (dp(6), dp(6))
+                        pos_hint: {'center_y': 0.5}
+                        canvas:
+                            Color:
+                                rgba: tokens.COLOR_TEXT_ON_ACCENT if root.inverted else tokens.COLOR_ACCENT
+                            Ellipse:
+                                pos: self.pos
+                                size: self.size
+
+                    Label:
+                        text: root.badge_text
+                        size_hint_x: None
+                        width: self.texture_size[0]
+                        font_name: tokens.FONT_BOLD
+                        font_size: f"{tokens.FONT_SIZE_MICRO}sp"
+                        color: tokens.COLOR_TEXT_ON_ACCENT if root.inverted else tokens.COLOR_ACCENT
+                        halign: 'center'
+                        valign: 'middle'
+
+            # Circular Icon container with accent tint
+            AnchorLayout:
+                anchor_x: 'center'
+                anchor_y: 'center'
+                size_hint_y: None
+                height: dp(76)
+
+                Widget:
+                    size_hint: (None, None)
+                    size: (dp(72), dp(72))
+                    canvas:
+                        Color:
+                            rgba: (1.0, 1.0, 1.0, 0.18) if root.inverted else tokens.COLOR_ACCENT_TINT
+                        Ellipse:
+                            pos: (self.center_x - dp(36), self.center_y - dp(36))
+                            size: (dp(72), dp(72))
+                        Color:
+                            rgba: (1.0, 1.0, 1.0, 0.35) if root.inverted else (tokens.COLOR_ACCENT if root.hovered else tokens.COLOR_ACCENT_BORDER)
+                        Line:
+                            circle: (self.center_x, self.center_y, dp(36))
+                            width: tokens.BORDER_WIDTH_THIN
+
+                Image:
+                    source: root.icon_source
+                    size_hint: (None, None)
+                    size: (dp(36), dp(36))
+                    color: tokens.COLOR_TEXT_ON_ACCENT if root.inverted else tokens.COLOR_ACCENT
+                    allow_stretch: True
+                    keep_ratio: True
+
+            Label:
+                text: root.card_title
+                size_hint_y: None
+                height: dp(30)
+                font_name: tokens.FONT_BLACK
+                font_size: f"{tokens.FONT_SIZE_TITLE}sp"
+                color: tokens.COLOR_TEXT_ON_ACCENT if root.inverted else tokens.COLOR_TEXT_PRIMARY
+                halign: 'center'
+                valign: 'middle'
+                text_size: self.size
+
+            Label:
+                text: root.card_body
+                markup: True
+                size_hint_y: None
+                height: dp(44)
+                font_name: tokens.FONT_REGULAR
+                font_size: f"{tokens.FONT_SIZE_BODY}sp"
+                color: (0.90, 0.95, 0.92, 1.0) if root.inverted else tokens.COLOR_TEXT_SECONDARY
+                halign: 'center'
+                valign: 'middle'
+                text_size: self.size
+
+# ==============================================================================
+# INPUTS & CONTROLS
+# ==============================================================================
+
+<AppTextInput@TextInput>:
+    multiline: False
+    size_hint_y: None
+    height: dp(tokens.HEIGHT_INPUT)
+    padding: [dp(16), dp(10)]
+    font_size: f"{tokens.FONT_SIZE_BODY}sp"
+    background_normal: ''
+    background_active: ''
+    background_color: (0, 0, 0, 0)
+    foreground_color: tokens.COLOR_TEXT_PRIMARY
+    hint_text_color: tokens.COLOR_TEXT_MUTED
+    cursor_color: tokens.COLOR_ACCENT
+    selection_color: tokens.COLOR_ACCENT_GLOW
+    canvas.before:
+        Color:
+            rgba: tokens.COLOR_SURFACE_1 if not self.disabled else tokens.COLOR_SURFACE_2
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [dp(tokens.RADIUS_MD),]
+        Color:
+            rgba: self.foreground_color
+    canvas.after:
+        Color:
+            rgba: tokens.COLOR_ACCENT if self.focus else (tokens.COLOR_BORDER if not self.disabled else tokens.COLOR_BORDER_MUTED)
+        Line:
+            rounded_rectangle: (self.x, self.y, self.width, self.height, dp(tokens.RADIUS_MD))
+            width: tokens.BORDER_WIDTH_FOCUS if self.focus else tokens.BORDER_WIDTH_THIN
+
+<AppSpinner@Spinner>:
+    size_hint_y: None
+    height: dp(tokens.HEIGHT_INPUT)
+    background_normal: ''
+    background_color: tokens.COLOR_TRANSPARENT
+    color: tokens.COLOR_TEXT_PRIMARY
+    font_size: f"{tokens.FONT_SIZE_BODY}sp"
+    padding: [dp(14), 0, dp(14), 0]
+    halign: 'left'
+    valign: 'middle'
+    text_size: self.size
+    canvas.before:
+        Color:
+            rgba: tokens.COLOR_SURFACE_2 if self.state == 'down' else tokens.COLOR_SURFACE_1
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [dp(tokens.RADIUS_MD),]
+    canvas.after:
+        Color:
+            rgba: tokens.COLOR_ACCENT if self.state == 'down' else tokens.COLOR_BORDER_LIGHT
+        Line:
+            rounded_rectangle: (self.x, self.y, self.width, self.height, dp(tokens.RADIUS_MD))
+            width: tokens.BORDER_WIDTH_THIN
+
+# ==============================================================================
+# STATUS & FEEDBACK
+# ==============================================================================
+
+<StatusBadge@BoxLayout>:
+    orientation: 'horizontal'
+    size_hint: (None, None)
+    height: dp(30)
+    width: self.minimum_width + dp(20)
+    padding: [dp(10), dp(4), dp(10), dp(4)]
+    spacing: dp(6)
+    badge_text: ''
+    badge_status: 'ready'   # 'ready' | 'live' | 'warning' | 'error' | 'muted'
+    canvas.before:
+        Color:
+            rgba: (tokens.COLOR_SUCCESS_TINT if root.badge_status in ('ready', 'live') else (tokens.COLOR_WARNING_TINT if root.badge_status == 'warning' else (tokens.COLOR_ERROR_TINT if root.badge_status == 'error' else tokens.COLOR_SURFACE_2)))
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [dp(tokens.RADIUS_PILL),]
+    canvas.after:
+        Color:
+            rgba: (tokens.COLOR_SUCCESS if root.badge_status in ('ready', 'live') else (tokens.COLOR_WARNING if root.badge_status == 'warning' else (tokens.COLOR_ERROR if root.badge_status == 'error' else tokens.COLOR_BORDER)))
+        Line:
+            rounded_rectangle: (self.x, self.y, self.width, self.height, dp(tokens.RADIUS_PILL))
+            width: tokens.BORDER_WIDTH_THIN
+
+    Widget:
+        size_hint: (None, None)
+        size: (dp(8), dp(8))
+        pos_hint: {'center_y': 0.5}
+        canvas:
+            Color:
+                rgba: (tokens.COLOR_SUCCESS if root.badge_status in ('ready', 'live') else (tokens.COLOR_WARNING if root.badge_status == 'warning' else (tokens.COLOR_ERROR if root.badge_status == 'error' else tokens.COLOR_TEXT_MUTED)))
+            Ellipse:
+                pos: self.pos
+                size: self.size
+
+    Label:
+        text: root.badge_text
+        size_hint_x: None
+        width: self.texture_size[0]
+        font_size: f"{tokens.FONT_SIZE_CAPTION}sp"
+        bold: True
+        color: (tokens.COLOR_SUCCESS if root.badge_status in ('ready', 'live') else (tokens.COLOR_WARNING if root.badge_status == 'warning' else (tokens.COLOR_ERROR if root.badge_status == 'error' else tokens.COLOR_TEXT_SECONDARY)))
+        halign: 'center'
+        valign: 'middle'
+
+<StepIndicatorItem@BoxLayout>:
+    orientation: 'horizontal'
+    spacing: dp(6)
+    label_text: ''
+    step_state: 'waiting'   # 'waiting' | 'active' | 'done' | 'error'
+
+    Widget:
+        size_hint_x: None
+        width: dp(20)
+        canvas:
+            Color:
+                rgba: (tokens.COLOR_ACCENT if root.step_state == 'done' else (tokens.COLOR_SUCCESS if root.step_state == 'active' else (tokens.COLOR_ERROR if root.step_state == 'error' else tokens.COLOR_TRANSPARENT)))
+            Ellipse:
+                pos: (self.x + dp(3), self.center_y - dp(7))
+                size: (dp(14), dp(14))
+            Color:
+                rgba: (tokens.COLOR_SUCCESS if root.step_state == 'active' else (tokens.COLOR_ACCENT if root.step_state == 'done' else (tokens.COLOR_ERROR if root.step_state == 'error' else tokens.COLOR_BORDER_LIGHT)))
+            Line:
+                circle: (self.x + dp(10), self.center_y, dp(7))
+                width: tokens.BORDER_WIDTH_FOCUS if root.step_state == 'active' else tokens.BORDER_WIDTH_THIN
+            Color:
+                rgba: (tokens.COLOR_TEXT_ON_ACCENT if root.step_state in ('done', 'error') else tokens.COLOR_TRANSPARENT)
+            Line:
+                points: (self.x + dp(6), self.center_y, self.x + dp(9), self.center_y - dp(3), self.x + dp(14), self.center_y + dp(3)) if root.step_state == 'done' else (self.x + dp(6), self.center_y - dp(4), self.x + dp(14), self.center_y + dp(4))
+                width: 1.5
+            Line:
+                points: (0, 0, 0, 0) if root.step_state == 'done' else (self.x + dp(6), self.center_y + dp(4), self.x + dp(14), self.center_y - dp(4))
+                width: 1.5
+
+    Label:
+        text: root.label_text
+        font_size: f"{tokens.FONT_SIZE_BODY}sp"
+        bold: root.step_state == 'active'
+        color: (tokens.COLOR_TEXT_PRIMARY if root.step_state in ('done', 'active') else (tokens.COLOR_ERROR if root.step_state == 'error' else tokens.COLOR_TEXT_MUTED))
+        halign: 'left'
+        valign: 'middle'
+        text_size: self.size
+
+<AppProgressBar@Widget>:
+    value: 0.0
+    max: 1.0
+    size_hint_y: None
+    height: dp(6)
+    canvas.before:
+        Color:
+            rgba: tokens.COLOR_SURFACE_2
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [dp(tokens.RADIUS_XS),]
+        Color:
+            rgba: tokens.COLOR_ACCENT
+        RoundedRectangle:
+            pos: self.pos
+            size: (self.width * (min(1.0, max(0.0, float(self.value) / float(self.max if self.max else 1.0)))), self.height)
+            radius: [dp(tokens.RADIUS_XS),]
+
+# ==============================================================================
+# DATA TABLE COMPONENTS (Identities, Registry)
+# ==============================================================================
+
+<DataTableHeader@BoxLayout>:
+    size_hint_y: None
+    height: dp(44)
+    padding: [dp(16), 0, dp(16), 0]
+    canvas.before:
+        Color:
+            rgba: tokens.COLOR_SURFACE_2
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [dp(tokens.RADIUS_SM), dp(tokens.RADIUS_SM), 0, 0]
+    canvas.after:
+        Color:
+            rgba: tokens.COLOR_BORDER
+        Line:
+            points: (self.x, self.y, self.right, self.y)
+            width: tokens.BORDER_WIDTH_THIN
+
+<DataTableRow@BoxLayout>:
+    size_hint_y: None
+    height: dp(48)
+    padding: [dp(16), 0, dp(16), 0]
+    canvas.before:
+        Color:
+            rgba: tokens.COLOR_SURFACE_1
+        Rectangle:
+            pos: self.pos
+            size: self.size
+    canvas.after:
+        Color:
+            rgba: tokens.COLOR_BORDER_MUTED
+        Line:
+            points: (self.x, self.y, self.right, self.y)
+            width: tokens.BORDER_WIDTH_THIN

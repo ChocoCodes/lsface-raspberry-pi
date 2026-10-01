@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
+import threading
 import time
 from uuid import uuid4
 
@@ -10,12 +12,15 @@ import numpy as np
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.core.window import Window
+from kivy.graphics import Color, Rectangle
 from kivy.graphics.texture import Texture
 from kivy.lang import Builder
 from kivy.properties import ListProperty, NumericProperty, StringProperty
 from kivy.uix.screenmanager import Screen
+from kivy.uix.widget import Widget
 
 from src.config.config import KV_PATH
+from src.ui import load_design_system, tokens
 
 from src.pose_detection.flow import (
     LABELS,
@@ -28,11 +33,143 @@ from src.pose_detection.flow import (
 from src.pose_detection.head_pose import HeadPoseTracker, load_config
 
 
+class FaceCutoutOverlay(Widget):
+    """Translucent overlay with an anti-aliased oval cutout at the middle."""
+
+    overlay_color = ListProperty([1.0, 1.0, 1.0, 0.65])
+    border_color = ListProperty([1.0, 1.0, 1.0, 0.90])
+    border_width = NumericProperty(2.5)
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._texture = None
+        self._cached_size = (0, 0)
+        with self.canvas:
+            self._color_instr = Color(1, 1, 1, 1)
+            self._rect_instr = Rectangle(pos=self.pos, size=self.size)
+        self.bind(pos=self._update_geometry, size=self._update_geometry)
+        self.bind(
+            overlay_color=self._invalidate_texture,
+            border_color=self._invalidate_texture,
+            border_width=self._invalidate_texture,
+        )
+
+    def _invalidate_texture(self, *_args):
+        self._cached_size = (0, 0)
+        self._update_geometry()
+
+    def _update_geometry(self, *_args):
+        self._rect_instr.pos = self.pos
+        self._rect_instr.size = self.size
+        w, h = int(round(self.width)), int(round(self.height))
+        if w < 10 or h < 10:
+            return
+        if self._cached_size == (w, h) and self._texture is not None:
+            return
+        self._cached_size = (w, h)
+        self._render_texture(w, h)
+
+    def _render_texture(self, w: int, h: int):
+        try:
+            r, g, b, a = [int(round(c * 255)) for c in self.overlay_color]
+            img = np.full((h, w, 4), (b, g, r, a), dtype=np.uint8)
+
+            center = (w // 2, h // 2)
+            # Oval cutout suited for human face framing (approx 1.35 : 1 ratio)
+            radius_y = int(round(h * 0.31))
+            radius_x = int(round(radius_y * 0.74))
+
+            # Transparent oval cutout
+            cv.ellipse(img, center, (radius_x, radius_y), 0, 0, 360, (255, 255, 255, 0), -1, cv.LINE_AA)
+
+            # Anti-aliased subtle border ring
+            if self.border_width > 0:
+                br, bg, bb, ba = [int(round(c * 255)) for c in self.border_color]
+                cv.ellipse(
+                    img,
+                    center,
+                    (radius_x, radius_y),
+                    0,
+                    0,
+                    360,
+                    (bb, bg, br, ba),
+                    int(round(self.border_width)),
+                    cv.LINE_AA,
+                )
+
+            flipped = cv.flip(img, 0)
+            self._texture = Texture.create(size=(w, h), colorfmt="bgra")
+            self._texture.blit_buffer(flipped.tobytes(), colorfmt="bgra", bufferfmt="ubyte")
+            self._rect_instr.texture = self._texture
+        except Exception:
+            self._cached_size = (0, 0)
+
+
 Builder.load_file(str(KV_PATH / "pose.kv"))
+
+_log = logging.getLogger(__name__)
 
 APP_ROOT = Path(__file__).resolve().parents[2]
 POSE_PROFILE = APP_ROOT / "config" / "head_pose.local.json"
 POSE_TEMPLATE = APP_ROOT / "config" / "head_pose.json"
+
+POSE_TRANSLATIONS = {
+    "FRONT": {
+        "en": "Look straight at the camera",
+        "ja": "カメラをまっすぐ見てください",
+        "ko": "카메라를 정면으로 바라봐 주세요",
+    },
+    "LEFT": {
+        "en": "Turn your head to your left",
+        "ja": "顔を左に向けてください",
+        "ko": "고개를 왼쪽으로 돌려주세요",
+    },
+    "RIGHT": {
+        "en": "Turn your head to your right",
+        "ja": "顔を右に向けてください",
+        "ko": "고개를 오른쪽으로 돌려주세요",
+    },
+    "UP": {
+        "en": "Tilt your head up",
+        "ja": "あごを上げて上を向いてください",
+        "ko": "턱을 들고 위를 바라봐 주세요",
+    },
+    "DOWN": {
+        "en": "Tilt your head down",
+        "ja": "あごを引いて下を向いてください",
+        "ko": "턱을 당기고 아래를 바라봐 주세요",
+    },
+    "ready": {
+        "en": "Look straight at the camera",
+        "ja": "カメラをまっすぐ見てください",
+        "ko": "카메라를 정면으로 바라봐 주세요",
+    },
+    "saving": {
+        "en": "Saving enrollment…",
+        "ja": "登録データを保存しています…",
+        "ko": "등록 정보를 저장하고 있습니다…",
+    },
+    "complete": {
+        "en": "Pose scan complete",
+        "ja": "スキャンが完了しました",
+        "ko": "스캔이 완료되었습니다",
+    },
+    "error": {
+        "en": "Scan needs another try",
+        "ja": "もう一度やり直してください",
+        "ko": "다시 한 번 시도해 주세요",
+    },
+    "setup": {
+        "en": "Device setup required",
+        "ja": "デバイスのセットアップが必要です",
+        "ko": "장치 설정이 필요합니다",
+    },
+    "loading": {
+        "en": "Preparing camera…",
+        "ja": "カメラを準備しています…",
+        "ko": "카메라를 준비하고 있습니다…",
+    },
+}
 
 
 class PoseScreen(Screen):
@@ -41,7 +178,10 @@ class PoseScreen(Screen):
     camera_mode = StringProperty("Default PC Camera")
     mode = StringProperty("scan")
     phase = StringProperty("loading")
-    instruction_text = StringProperty("Preparing camera…")
+    instruction_en = StringProperty(POSE_TRANSLATIONS["ready"]["en"])
+    instruction_ja = StringProperty(POSE_TRANSLATIONS["ready"]["ja"])
+    instruction_ko = StringProperty(POSE_TRANSLATIONS["ready"]["ko"])
+    instruction_text = StringProperty(POSE_TRANSLATIONS["ready"]["en"])
     note_text = StringProperty("")
     step_states = ListProperty(["waiting"] * 5)
     action_text = StringProperty("")
@@ -61,6 +201,62 @@ class PoseScreen(Screen):
         self._keys_bound = False
         self._captured_frames: dict[str, np.ndarray] = {}
         self._handoff_started = False
+        self._camera_texture = None
+        self._camera_frame_size = (0, 0)
+        self._flip_buf: np.ndarray | None = None  # pre-allocated flip destination
+        self._blit_buf: bytearray | None = None   # pre-allocated blit buffer (zero-copy path)
+        self._worker_thread = None
+        self._worker_running = False
+        self._worker_busy = False
+        self._worker_trigger = threading.Event()
+        self._pending_frame = None
+        self._pending_time = 0.0
+        self._profile_verified = False
+        self._warmup_skips = 0        # frames skipped while reader thread warms up
+        self._display_frame_count = 0  # total frames pushed to texture (for FPS logging)
+        self._display_fps_t = 0.0      # timestamp of last FPS log
+        self.bind(size=self._on_screen_resize)
+
+    def _set_instruction(self, target):
+        if isinstance(target, dict):
+            trans = target
+        else:
+            trans = POSE_TRANSLATIONS.get(target, POSE_TRANSLATIONS["FRONT"])
+        self.instruction_en = trans.get("en", "")
+        self.instruction_ja = trans.get("ja", "")
+        self.instruction_ko = trans.get("ko", "")
+        self.instruction_text = self.instruction_en
+
+    def _on_screen_resize(self, *_args):
+        self._update_camera_geometry()
+
+    def _update_camera_geometry(self, frame_w: int | None = None, frame_h: int | None = None):
+        if not hasattr(self, "ids") or "camera_feed" not in self.ids:
+            return
+        feed = self.ids.camera_feed
+        sw, sh = self.width, self.height
+        if sw <= 10 or sh <= 10:
+            return
+        if frame_w is None or frame_h is None:
+            frame_w, frame_h = self._camera_frame_size
+        if frame_w <= 0 or frame_h <= 0:
+            feed.size_hint = (1, 1)
+            feed.pos = (0, 0)
+            return
+
+        scale = max(sw / frame_w, sh / frame_h)
+        nw = frame_w * scale
+        nh = frame_h * scale
+        feed.size_hint = (None, None)
+        feed.size = (nw, nh)
+        feed.pos = ((sw - nw) / 2.0, (sh - nh) / 2.0)
+
+    def on_touch_up(self, touch):
+        handled = super().on_touch_up(touch)
+        if not handled and self.mode == "scan" and self.phase == "ready":
+            self.primary_action()
+            return True
+        return handled
 
     def on_kv_post(self, *_args):
         if self.mode == "scan":
@@ -90,35 +286,95 @@ class PoseScreen(Screen):
         self.identity_name = ""
         self._captured_frames = {}
         self._handoff_started = False
+        self._warmup_skips = 0
+        self._display_frame_count = 0
+        self._display_fps_t = 0.0
+        _log.info("[PoseScreen] Initializing — mode=%s camera=%s", self.mode, self.camera_mode)
         try:
             config = self._profile_config()
             self.tracker = HeadPoseTracker(config=config)
         except Exception as exc:
+            _log.error("[PoseScreen] Could not load PnP setup: %s", exc)
             self._show_error(f"Could not load PnP setup: {exc}")
             return
         if self.mode == "scan":
             problem = pnp_profile_problem(config, self.tracker.backend.name)
             if problem:
+                _log.warning("[PoseScreen] PnP profile problem: %s", problem)
                 self.phase = "setup"
-                self.instruction_text = "Device setup required"
+                self._set_instruction("setup")
                 self.note_text = problem
                 self.action_text = "Open Device Setup"
                 return
             self.flow = GuidedPoseFlow(self.tracker, on_confirm=self._on_pose_confirm)
-            self.instruction_text = "Look straight at the camera"
-            self.note_text = "Press Start when the participant is ready."
+            self._set_instruction("ready")
+            self.note_text = "Press play button when ready."
             self.action_text = "Start Scan"
         else:
             self.flow = GuidedPoseCalibration(self.tracker)
-            self.instruction_text = "Look straight at the camera"
+            self._set_instruction("FRONT")
             self.note_text = "Operator-only PnP calibration. No photos are saved."
             self.action_text = ""
             self._bind_setup_keys()
         if not self._open_camera():
             return
-        # ponytail: Kivy's clock owns camera and pose work; add a worker only if Pi profiling shows visible stalls.
+        self._worker_running = True
+        self._worker_busy = False
+        self._profile_verified = False
+        self._worker_trigger.clear()
+        self._worker_thread = threading.Thread(target=self._pose_worker_loop, daemon=True)
+        self._worker_thread.start()
         self._update_event = Clock.schedule_interval(self.update, 1.0 / 30.0)
+        _log.info("[PoseScreen] Clock loop started at 30 Hz; pose worker at %.0f Hz", self.tracker.config.get("pose_hz", 15.0))
         self.phase = self.flow.phase
+        self._refresh_text()
+
+    def _pose_worker_loop(self):
+        while self._worker_running:
+            self._worker_trigger.wait()
+            if not self._worker_running:
+                break
+            self._worker_trigger.clear()
+            frame = self._pending_frame
+            now = self._pending_time
+            if frame is None or self.tracker is None or self.flow is None:
+                self._worker_busy = False
+                continue
+
+            try:
+                t0 = time.monotonic()
+                pose = self.tracker.estimate(frame, timestamp_s=now)
+                latency_ms = (time.monotonic() - t0) * 1000.0
+                if self.mode == "scan":
+                    self.flow.update(frame, pose, now)
+                else:
+                    self.flow.update(pose, now, resolution=(frame.shape[1], frame.shape[0]))
+                _log.debug(
+                    "[PoseWorker] estimate latency=%.1f ms direction=%s",
+                    latency_ms,
+                    pose.direction if pose else "None",
+                )
+                if latency_ms > 100:
+                    _log.warning("[PoseWorker] Slow estimate: %.1f ms — consider reducing pose_hz or detector max_side", latency_ms)
+                Clock.schedule_once(lambda _dt, p=pose: self._on_worker_result(p), 0)
+            except Exception as exc:
+                _log.error("[PoseWorker] estimate error: %s", exc)
+                self._worker_busy = False
+
+    def _on_worker_result(self, pose):
+        self.pose = pose
+        self._worker_busy = False
+        if self.flow is None:
+            return
+        self.phase = self.flow.phase
+        if self.phase == "complete":
+            self._stop_camera()
+            if self.mode == "scan":
+                if set(self._captured_frames) != set(LABELS):
+                    self._show_error("The scan completed without all five pose frames.")
+                else:
+                    self._begin_enrollment()
+                return
         self._refresh_text()
 
     def _open_camera(self) -> bool:
@@ -129,10 +385,13 @@ class PoseScreen(Screen):
         if getattr(options, "picamera2", False):
             camera_mode = "Raspberry Pi Camera"
 
+        _log.info("[PoseScreen] Acquiring camera mode=%s", camera_mode)
         try:
             self.camera = app.camera_manager.acquire(camera_mode)
+            _log.info("[PoseScreen] Camera acquired OK")
             return True
         except Exception as exc:
+            _log.error("[PoseScreen] Camera acquire failed: %s", exc)
             self.camera = None
             self._show_error(f"Could not start {camera_mode}: {exc}")
             return False
@@ -146,48 +405,98 @@ class PoseScreen(Screen):
         try:
             frame = self._read_frame()
         except Exception as exc:
+            _log.error("[PoseScreen] Camera read error: %s", exc)
             self._show_error(f"Camera stopped delivering frames: {exc}")
             return
+
         if frame is None:
-            self._show_error("Camera stopped delivering frames.")
+            # Reader thread hasn't delivered the first frame yet — normal during warmup.
+            # Skip silently; do NOT call _show_error here.
+            self._warmup_skips += 1
+            if self._warmup_skips == 1:
+                _log.debug("[PoseScreen] Waiting for first camera frame (warmup)…")
+            elif self._warmup_skips % 30 == 0:
+                _log.warning("[PoseScreen] Still waiting for first frame — %d skips", self._warmup_skips)
             return
+
+        if self._warmup_skips > 0:
+            _log.info("[PoseScreen] Camera warm after %d skipped ticks", self._warmup_skips)
+            self._warmup_skips = -1  # sentinel: log only once
+
+        # Immediate display on UI thread → buttery smooth 30 FPS video preview
         self._display_frame(frame)
-        if self.mode == "scan":
+
+        if self.mode == "scan" and not self._profile_verified:
             problem = pnp_profile_problem(
                 self.tracker.config, self.tracker.backend.name, (frame.shape[1], frame.shape[0])
             )
             if problem:
+                _log.warning("[PoseScreen] PnP profile problem at runtime: %s", problem)
                 self._stop_camera()
                 self.phase = "setup"
-                self.instruction_text = "Device setup required"
+                self._set_instruction("setup")
                 self.note_text = problem
                 self.action_text = "Open Device Setup"
                 return
-        now = time.monotonic()
-        if now - self._last_pose < 1.0 / self.tracker.config["pose_hz"]:
-            return
-        self.pose = self.tracker.estimate(frame, timestamp_s=now)
-        self._last_pose = now
-        if self.mode == "scan":
-            self.flow.update(frame, self.pose, now)
-        else:
-            self.flow.update(self.pose, now, resolution=(frame.shape[1], frame.shape[0]))
-        self.phase = self.flow.phase
-        if self.phase == "complete":
-            self._stop_camera()
-            if self.mode == "scan":
-                if set(self._captured_frames) != set(LABELS):
-                    self._show_error("The scan completed without all five pose frames.")
-                else:
-                    self._begin_enrollment()
-                return
-        self._refresh_text()
+            self._profile_verified = True
+            _log.info("[PoseScreen] PnP profile verified for resolution %dx%d", frame.shape[1], frame.shape[0])
 
-    def _display_frame(self, frame_bgr):
-        preview = cv.flip(frame_bgr, 1) if self.tracker.config.get("preview_mirror", True) else frame_bgr
-        texture = Texture.create(size=(preview.shape[1], preview.shape[0]), colorfmt="bgr")
-        texture.blit_buffer(cv.flip(preview, 0).tobytes(), colorfmt="bgr", bufferfmt="ubyte")
-        self.ids.camera_feed.texture = texture
+        now = time.monotonic()
+        pose_interval = 1.0 / self.tracker.config.get("pose_hz", 15.0)
+        if not self._worker_busy and (now - self._last_pose >= pose_interval):
+            self._last_pose = now
+            self._worker_busy = True
+            # Snapshot: worker runs on another thread; camera.read() returns a shared
+            # reference so we copy here to prevent the display flip from corrupting
+            # the frame the worker is estimating pose on.
+            self._pending_frame = frame.copy()
+            self._pending_time = now
+            self._worker_trigger.set()
+
+    def _display_frame(self, frame_bgr: np.ndarray):
+        h, w = frame_bgr.shape[:2]
+
+        # Allocate (or reallocate on resolution change) persistent flip + blit buffers.
+        # After the first frame these are reused every tick — zero heap allocation.
+        if self._flip_buf is None or self._flip_buf.shape != frame_bgr.shape:
+            self._flip_buf = np.empty_like(frame_bgr)
+            self._blit_buf = bytearray(h * w * 3)
+
+        mirror = self.tracker.config.get("preview_mirror", True)
+        # flip_code: -1 = both axes (horizontal mirror + vertical for Kivy's origin)
+        #             0 = vertical only (no mirror)
+        # Single call replaces the previous two-step cv.flip(cv.flip(frame, 1), 0).
+        cv.flip(frame_bgr, -1 if mirror else 0, dst=self._flip_buf)
+
+        feed = self.ids.camera_feed
+        if self._camera_texture is None or self._camera_texture.size != (w, h):
+            _log.info("[PoseScreen] Creating texture %dx%d (mirror=%s)", w, h, mirror)
+            self._camera_texture = Texture.create(size=(w, h), colorfmt="bgr")
+            feed.texture = self._camera_texture
+            self._camera_frame_size = (w, h)
+            self._update_camera_geometry(w, h)
+            # Re-allocate blit buffer to match confirmed resolution
+            self._blit_buf = bytearray(h * w * 3)
+
+        # Zero-copy blit: write numpy data directly into the pre-allocated bytearray.
+        # np.copyto into memoryview avoids creating an intermediate Python bytes object.
+        np.copyto(
+            np.frombuffer(self._blit_buf, dtype=np.uint8).reshape(h, w, 3),
+            self._flip_buf,
+        )
+        self._camera_texture.blit_buffer(self._blit_buf, colorfmt="bgr", bufferfmt="ubyte")
+
+        # Periodic display FPS logging (every 5 s)
+        self._display_frame_count += 1
+        now = time.monotonic()
+        if self._display_fps_t == 0.0:
+            self._display_fps_t = now
+        elif now - self._display_fps_t >= 5.0:
+            elapsed = now - self._display_fps_t
+            fps = self._display_frame_count / elapsed
+            _log.info("[PoseScreen] Display FPS: %.1f over last %.1fs", fps, elapsed)
+            self._display_frame_count = 0
+            self._display_fps_t = now
 
     def _refresh_text(self):
         if self.flow is None:
@@ -196,35 +505,45 @@ class PoseScreen(Screen):
         self.note_text = self.flow.note
         if self.mode == "scan":
             if self.phase == "saving":
-                self.instruction_text = "Saving enrollment"
+                self._set_instruction("saving")
                 self.action_text = ""
             elif self.phase == "complete":
-                self.instruction_text = "Pose scan complete"
+                self._set_instruction("complete")
                 self.action_text = "Done"
             elif self.phase == "error":
-                self.instruction_text = "Enrollment needs another try"
+                self._set_instruction("error")
                 self.action_text = "Retry Save" if self._captured_frames else "Back"
             elif self.phase == "setup":
-                self.instruction_text = "Device setup required"
+                self._set_instruction("setup")
                 self.action_text = "Open Device Setup"
             elif self.phase == "calibrating":
-                self.instruction_text = INSTRUCTIONS["FRONT"]
+                self._set_instruction("FRONT")
                 self.action_text = ""
             elif self.phase in ("capture", "feedback"):
-                self.instruction_text = format_instruction(self.flow)
+                label = LABELS[self.flow.stage] if self.flow.stage < len(LABELS) else "FRONT"
+                self._set_instruction(label)
                 self.action_text = ""
             else:
-                self.instruction_text = INSTRUCTIONS["FRONT"]
+                self._set_instruction("ready")
                 self.action_text = "Start Scan"
         else:
             if self.phase == "complete":
-                self.instruction_text = "Device setup complete"
+                self._set_instruction({
+                    "en": "Device setup complete",
+                    "ja": "セットアップが完了しました",
+                    "ko": "설정이 완료되었습니다",
+                })
                 self.action_text = "Done" if self._saved_setup else ""
             elif self.phase == "error":
-                self.instruction_text = "Setup needs another try"
+                self._set_instruction({
+                    "en": "Setup needs another try",
+                    "ja": "再試行が必要です",
+                    "ko": "다시 시도해 주세요",
+                })
                 self.action_text = "Restart Setup"
             else:
-                self.instruction_text = format_instruction(self.flow)
+                label = LABELS[self.flow.stage] if self.flow.stage < len(LABELS) else "FRONT"
+                self._set_instruction(label)
                 self.action_text = ""
         self.step_states = self._step_states()
 
@@ -282,12 +601,24 @@ class PoseScreen(Screen):
         self._shutdown()
         self.manager.current = "home"
 
+    def _stop_worker(self):
+        self._worker_running = False
+        if hasattr(self, "_worker_trigger"):
+            self._worker_trigger.set()
+        self._worker_busy = False
+        self._worker_thread = None
+
     def _stop_camera(self):
+        self._stop_worker()
         if self._update_event is not None:
             self._update_event.cancel()
             self._update_event = None
 
         self.camera = None
+        self._camera_texture = None
+        self._camera_frame_size = (0, 0)
+        self._flip_buf = None
+        self._blit_buf = None
 
     def _shutdown(self):
         self._stop_camera()
@@ -333,9 +664,10 @@ class PoseScreen(Screen):
         self.manager.current = "voice_recognition"
 
     def _show_error(self, message):
+        _log.error("[PoseScreen] ERROR → %s", message)
         self._stop_camera()
         self.phase = "error"
-        self.instruction_text = "Camera or setup error"
+        self._set_instruction("error")
         self.note_text = message
         self.action_text = "Back"
 
