@@ -16,6 +16,7 @@ from src.config.config import KV_PATH
 from src.engine.enrollment_voice import EnrollmentVoiceService
 from src.engine.database.database_manager import DatabaseManager
 from src.engine.database.feature_db import FeatureDB
+from src.engine.registration_logging import registration_context, registration_logger
 from src.ui import load_design_system
 
 load_design_system()
@@ -210,9 +211,14 @@ class VoiceRecognitionScreen(Screen):
                     "DatabaseManager.prepare_enrollment(frames, database_id=...) "
                     "is not available yet."
                 )
-            prepared = prepare(frames, database_id=database_id)
+            with registration_context(session=token):
+                registration_logger().info("Preparation started: database=%s poses=%s", database_id, list(frames))
+                prepared = prepare(frames, database_id=database_id)
+                registration_logger().info("Preparation succeeded")
         except Exception as exc:
             error = exc
+            with registration_context(session=token):
+                registration_logger().exception("Preparation failed")
         Clock.schedule_once(
             lambda _dt: self._finish_preparation(token, prepared, error),
             0,

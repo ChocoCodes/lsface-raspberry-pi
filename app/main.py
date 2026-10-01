@@ -41,6 +41,12 @@ def run_kivy(options) -> int:
     class LSFaceApp(App):
         title = "LS-Face"
 
+        def on_start(self):
+            from kivy.clock import Clock
+            from src.engine.ui_watchdog import UIWatchdog
+            self.ui_watchdog = UIWatchdog(Clock, self.root, APP_ROOT / "logs" / "ui-freeze.log")
+            self.ui_watchdog.start()
+
         def build(self):
             self.camera_manager = CameraManager()
             self.pose_options = options
@@ -61,9 +67,17 @@ def run_kivy(options) -> int:
         def on_stop(self):
             try:
                 if self.root is not None:
+                    self.root.get_screen("pose_scan").on_leave()
+                    self.root.get_screen("pose_setup").on_leave()
+                    self.root.get_screen("recognition").on_leave()
                     self.root.get_screen("voice_recognition").close_voice_service()
             finally:
-                self.camera_manager.close()
+                try:
+                    self.camera_manager.close()
+                finally:
+                    watchdog = getattr(self, "ui_watchdog", None)
+                    if watchdog is not None:
+                        watchdog.close()
 
     LSFaceApp().run()
     return 0

@@ -98,6 +98,8 @@ def load_hybrid_class(module_path: Path):
 def build_selected_cascade(
     choice: str,
     enrollment_root: str | Path | None = None,
+    *,
+    largest_face_only: bool = False,
 ):
     """Build a cascade, optionally selecting an isolated database release root."""
 
@@ -111,6 +113,7 @@ def build_selected_cascade(
         models_dir=str(setup["models_root"]),
         config_path=str(setup["config"]),
         enrollment_root=str(enrollment_root or setup["enrollment_root"]),
+        largest_face_only=largest_face_only,
     )
 
 

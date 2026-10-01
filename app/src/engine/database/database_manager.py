@@ -21,6 +21,7 @@ from src.engine.rebuild_release import build_release, load_records
 from src.engine.lbph_config import resolve_descriptor
 
 from .feature_db import FeatureDB
+from src.engine.registration_logging import registration_context, registration_logger
 
 
 @dataclass(frozen=True)
@@ -470,10 +471,17 @@ class DatabaseManager:
 
         working = current.clone()
         temporary_name = f"__prepared_{uuid4().hex}"
-        for frame in frame_values:
+        pose_labels = list(frames.keys()) if isinstance(frames, Mapping) else list(range(len(frame_values)))
+        for pose_label, frame in zip(pose_labels, frame_values):
             # FeatureDB.enroll_frame is the existing extraction primitive. The
             # temporary identity lives only on this discarded clone.
-            working.enroll_frame(temporary_name, frame)
+            with registration_context(pose=str(pose_label)):
+                registration_logger().info("Extracting enrollment frame: shape=%s", getattr(frame, 'shape', None))
+                try:
+                    working.enroll_frame(temporary_name, frame)
+                except Exception:
+                    registration_logger().exception("Enrollment frame extraction failed")
+                    raise
 
         record = working.db[temporary_name]
         samples = tuple(

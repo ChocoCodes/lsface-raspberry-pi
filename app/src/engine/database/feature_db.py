@@ -8,6 +8,7 @@ import numpy as np
 from src.config.config import MODELS_PATH
 from src.engine.face_aligner import FaceAligner
 from src.engine.sface import SFace
+from src.engine.registration_logging import registration_logger
 
 
 class FeatureDB:
@@ -136,7 +137,16 @@ class FeatureDB:
             raise ValueError("Enrollment frame is empty.")
 
         aligned_faces = self.aligner.detect_and_align(bgr_img)
+        log = registration_logger()
+        detections = [
+            {"bbox": [round(float(v), 2) for v in face[:4]],
+             "confidence": round(float(face[14]), 4) if len(face) > 14 else None}
+            for face, _aligned in aligned_faces
+        ]
+        log.info("Enrollment face check: frame_shape=%s aligned_face_count=%d faces=%s",
+                 bgr_img.shape, len(aligned_faces), detections)
         if len(aligned_faces) != 1:
+            log.warning("Rejected frame: expected exactly one detectable face; found %d", len(aligned_faces))
             raise ValueError(
                 "Enrollment requires exactly one detectable face; "
                 f"found {len(aligned_faces)}."
@@ -156,6 +166,7 @@ class FeatureDB:
         sface_embedding = np.asarray(self.sface.get_embedding(aligned), dtype=np.float32).reshape(-1)
         if sface_embedding.size != 128 or not np.isfinite(sface_embedding).all():
             raise ValueError("SFace produced an invalid embedding.")
+        log.info("Frame accepted: one face; valid LBPH crop and SFace embedding")
         return lbph_face, sface_embedding
 
     def enroll_frame(self, name: str, bgr_img: np.ndarray) -> None:

@@ -91,8 +91,10 @@ class HybridCascade:
         config_path: str | Path | None = None,
         artifacts_dir: str | Path | None = None,
         enrollment_root: str | Path | None = None,
+        largest_face_only: bool = False,
     ) -> None:
         self.base_dir = _path_arg(base_dir)
+        self.largest_face_only = largest_face_only
         self.models_dir = _path_arg(models_dir) if models_dir is not None else _default_asset_root(self.base_dir)
         self.config_path = _path_arg(config_path) if config_path is not None else _default_config_path(self.base_dir)
         selected_enrollment_root = enrollment_root if enrollment_root is not None else _default_enrollment_root(self.base_dir)
@@ -334,6 +336,9 @@ class HybridCascade:
         _, faces = self.detector.detect(image_bgr)
         if faces is None or len(faces) == 0:
             return []
+        if self.largest_face_only:
+            # Select before matching: smaller faces must never become fallback matches.
+            faces = [max(faces, key=lambda row: float(row[2]) * float(row[3]))]
         return [self._infer_face(image_bgr, np.asarray(row, dtype=np.float32)) for row in faces]
 
 

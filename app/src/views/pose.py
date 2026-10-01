@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 import threading
 import time
@@ -20,6 +21,9 @@ from kivy.uix.screenmanager import Screen
 from kivy.uix.widget import Widget
 
 from src.config.config import KV_PATH
+from src.engine.camera.manager import CameraBusyError
+from src.engine.preview_timing import PreviewTiming
+from src.engine.enrollment_crop import participant_crop
 from src.ui import load_design_system, tokens
 
 from src.pose_detection.flow import (
@@ -200,21 +204,30 @@ class PoseScreen(Screen):
         self._saved_setup = False
         self._keys_bound = False
         self._captured_frames: dict[str, np.ndarray] = {}
+        self._pose_captures = {}
         self._handoff_started = False
         self._camera_texture = None
         self._camera_frame_size = (0, 0)
         self._flip_buf: np.ndarray | None = None  # pre-allocated flip destination
         self._blit_buf: bytearray | None = None   # pre-allocated blit buffer (zero-copy path)
-        self._worker_thread = None
-        self._worker_running = False
         self._worker_busy = False
-        self._worker_trigger = threading.Event()
         self._pending_frame = None
         self._pending_time = 0.0
         self._profile_verified = False
         self._warmup_skips = 0        # frames skipped while reader thread warms up
         self._display_frame_count = 0  # total frames pushed to texture (for FPS logging)
         self._display_fps_t = 0.0      # timestamp of last FPS log
+        self._generation = 0
+        self._initialize_event = None
+        self._startup_future = None
+        self._startup_executor = None
+        self._startup_generation = None
+        self._startup_cancel = threading.Event()
+        self._pose_executor = None
+        self._pose_future = None
+        self._pose_generation = None
+        self._deferred_actions = []
+        self._preview_timing = PreviewTiming(_log)
         self.bind(size=self._on_screen_resize)
 
     def _set_instruction(self, target):
@@ -267,7 +280,7 @@ class PoseScreen(Screen):
                 name_input.parent.opacity = 0
 
     def on_enter(self, *_args):
-        Clock.schedule_once(self._initialize, 0)
+        self._initialize(0)
 
     def on_leave(self, *_args):
         self._shutdown()
@@ -285,28 +298,82 @@ class PoseScreen(Screen):
         self._saved_setup = False
         self.identity_name = ""
         self._captured_frames = {}
+        self._pose_captures = {}
         self._handoff_started = False
         self._warmup_skips = 0
         self._display_frame_count = 0
         self._display_fps_t = 0.0
+        self._last_pose = -float("inf")
+        self._startup_cancel = threading.Event()
+        self._preview_timing = PreviewTiming(_log)
+        self._set_instruction("loading")
+        self.note_text = "Preparing camera..."
+        self._initialize_event = Clock.schedule_interval(self._poll_startup, 1.0 / 30.0)
+
+    @staticmethod
+    def _load_registration(profile_config, mode, manager, camera_mode, cancelled):
+        config = profile_config()
+        tracker = HeadPoseTracker(config=config)
+        problem = pnp_profile_problem(config, tracker.backend.name) if mode == "scan" else None
+        if problem or cancelled.is_set():
+            return tracker, None, problem
+        deadline = time.monotonic() + 10.0
+        while not cancelled.is_set():
+            try:
+                camera = manager.acquire(camera_mode, cancel_event=cancelled)
+                return tracker, camera, None
+            except CameraBusyError:
+                if time.monotonic() >= deadline:
+                    raise RuntimeError("Camera is busy. Please return and try again.")
+                cancelled.wait(0.05)
+        return None
+
+    def _poll_startup(self, _dt):
+        if self._startup_cancel.is_set():
+            return False
+        if self._startup_future is None:
+            app = App.get_running_app()
+            mode = self.camera_mode
+            if getattr(getattr(app, "pose_options", None), "picamera2", False):
+                mode = "Raspberry Pi Camera"
+            self._startup_generation = self._generation
+            self._startup_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="registration-startup")
+            self._startup_future = self._startup_executor.submit(
+                self._load_registration, self._profile_config, self.mode,
+                app.camera_manager, mode, self._startup_cancel,
+            )
+            return
+        if not self._startup_future.done():
+            return
+        future, self._startup_future = self._startup_future, None
+        if self._startup_generation != self._generation:
+            return
+        self._startup_executor.shutdown(wait=False)
+        self._startup_executor = None
+        self._initialize_event = None
         _log.info("[PoseScreen] Initializing — mode=%s camera=%s", self.mode, self.camera_mode)
         try:
-            config = self._profile_config()
-            self.tracker = HeadPoseTracker(config=config)
+            loaded = future.result()
+            if loaded is None:
+                return False
+            self.tracker, self.camera, problem = loaded
         except Exception as exc:
-            _log.error("[PoseScreen] Could not load PnP setup: %s", exc)
-            self._show_error(f"Could not load PnP setup: {exc}")
-            return
+            self._show_error(f"Could not start registration: {exc}")
+            return False
         if self.mode == "scan":
-            problem = pnp_profile_problem(config, self.tracker.backend.name)
             if problem:
                 _log.warning("[PoseScreen] PnP profile problem: %s", problem)
                 self.phase = "setup"
                 self._set_instruction("setup")
                 self.note_text = problem
                 self.action_text = "Open Device Setup"
-                return
-            self.flow = GuidedPoseFlow(self.tracker, on_confirm=self._on_pose_confirm)
+                return False
+            # The callback owns only this session's dictionary, never screen state.
+            captures = self._pose_captures
+            self.flow = GuidedPoseFlow(
+                self.tracker,
+                on_confirm=lambda label, frame, manual=False: self._capture_pose(captures, label, frame),
+            )
             self._set_instruction("ready")
             self.note_text = "Press play button when ready."
             self.action_text = "Start Scan"
@@ -316,50 +383,14 @@ class PoseScreen(Screen):
             self.note_text = "Operator-only PnP calibration. No photos are saved."
             self.action_text = ""
             self._bind_setup_keys()
-        if not self._open_camera():
-            return
-        self._worker_running = True
         self._worker_busy = False
         self._profile_verified = False
-        self._worker_trigger.clear()
-        self._worker_thread = threading.Thread(target=self._pose_worker_loop, daemon=True)
-        self._worker_thread.start()
+        self._pose_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="registration-pose")
         self._update_event = Clock.schedule_interval(self.update, 1.0 / 30.0)
         _log.info("[PoseScreen] Clock loop started at 30 Hz; pose worker at %.0f Hz", self.tracker.config.get("pose_hz", 15.0))
         self.phase = self.flow.phase
         self._refresh_text()
-
-    def _pose_worker_loop(self):
-        while self._worker_running:
-            self._worker_trigger.wait()
-            if not self._worker_running:
-                break
-            self._worker_trigger.clear()
-            frame = self._pending_frame
-            now = self._pending_time
-            if frame is None or self.tracker is None or self.flow is None:
-                self._worker_busy = False
-                continue
-
-            try:
-                t0 = time.monotonic()
-                pose = self.tracker.estimate(frame, timestamp_s=now)
-                latency_ms = (time.monotonic() - t0) * 1000.0
-                if self.mode == "scan":
-                    self.flow.update(frame, pose, now)
-                else:
-                    self.flow.update(pose, now, resolution=(frame.shape[1], frame.shape[0]))
-                _log.debug(
-                    "[PoseWorker] estimate latency=%.1f ms direction=%s",
-                    latency_ms,
-                    pose.direction if pose else "None",
-                )
-                if latency_ms > 100:
-                    _log.warning("[PoseWorker] Slow estimate: %.1f ms — consider reducing pose_hz or detector max_side", latency_ms)
-                Clock.schedule_once(lambda _dt, p=pose: self._on_worker_result(p), 0)
-            except Exception as exc:
-                _log.error("[PoseWorker] estimate error: %s", exc)
-                self._worker_busy = False
+        return False
 
     def _on_worker_result(self, pose):
         self.pose = pose
@@ -377,33 +408,52 @@ class PoseScreen(Screen):
                 return
         self._refresh_text()
 
-    def _open_camera(self) -> bool:
-        app = App.get_running_app()
-        options = getattr(app, "pose_options", None)
-        camera_mode = self.camera_mode
-
-        if getattr(options, "picamera2", False):
-            camera_mode = "Raspberry Pi Camera"
-
-        _log.info("[PoseScreen] Acquiring camera mode=%s", camera_mode)
-        try:
-            self.camera = app.camera_manager.acquire(camera_mode)
-            _log.info("[PoseScreen] Camera acquired OK")
-            return True
-        except Exception as exc:
-            _log.error("[PoseScreen] Camera acquire failed: %s", exc)
-            self.camera = None
-            self._show_error(f"Could not start {camera_mode}: {exc}")
-            return False
-
     def _read_frame(self):
         if self.camera is None:
             return None
         return self.camera.read()
 
+    @staticmethod
+    def _capture_pose(captures, label, frame):
+        captures[label] = np.array(frame, copy=True)
+
+    @staticmethod
+    def _process_pose(tracker, flow, mode, frame, now):
+        # Estimation AND confirmation/calibration stay off the Kivy thread.
+        pose = tracker.estimate(frame, timestamp_s=now)
+        if mode == "scan":
+            # YuNetGeometry selects the largest face. Preserve that participant
+            # through confirmation instead of saving the entire background.
+            enrollment_frame = participant_crop(frame, pose.raw.bbox) if pose is not None else frame
+            flow.update(enrollment_frame, pose, now)
+        else:
+            flow.update(pose, now, resolution=(frame.shape[1], frame.shape[0]))
+        return pose
+
     def update(self, _dt):
+        if self.camera is None or self.flow is None:
+            return
+        if self._pose_future is not None and self._pose_future.done():
+            future, self._pose_future = self._pose_future, None
+            self._worker_busy = False
+            try:
+                pose = future.result()
+                if self._pose_generation == self._generation:
+                    # No worker is active while these references are published.
+                    self._captured_frames.update(self._pose_captures)
+                    self._on_worker_result(pose)
+            except Exception as exc:
+                self._show_error(f"Pose estimation failed: {exc}")
+                return
+        if not self._worker_busy:
+            actions, self._deferred_actions = self._deferred_actions, []
+            for action, args in actions:
+                action(*args)
+        if self.camera is None or self.flow is None:
+            return
         try:
             frame = self._read_frame()
+            self._preview_timing.observe(frame, time.monotonic())
         except Exception as exc:
             _log.error("[PoseScreen] Camera read error: %s", exc)
             self._show_error(f"Camera stopped delivering frames: {exc}")
@@ -451,7 +501,10 @@ class PoseScreen(Screen):
             # the frame the worker is estimating pose on.
             self._pending_frame = frame.copy()
             self._pending_time = now
-            self._worker_trigger.set()
+            self._pose_generation = self._generation
+            self._pose_future = self._pose_executor.submit(
+                self._process_pose, self.tracker, self.flow, self.mode, self._pending_frame, now,
+            )
 
     def _display_frame(self, frame_bgr: np.ndarray):
         h, w = frame_bgr.shape[:2]
@@ -485,6 +538,9 @@ class PoseScreen(Screen):
             self._flip_buf,
         )
         self._camera_texture.blit_buffer(self._blit_buf, colorfmt="bgr", bufferfmt="ubyte")
+        # Updating an existing texture does not invalidate the Image canvas.
+        # Request a redraw even when no labels or widget properties changed.
+        feed.canvas.ask_update()
 
         # Periodic display FPS logging (every 5 s)
         self._display_frame_count += 1
@@ -561,6 +617,9 @@ class PoseScreen(Screen):
         return states
 
     def primary_action(self):
+        if self._worker_busy:
+            self._deferred_actions.append((self.primary_action, ()))
+            return
         now = time.monotonic()
         if self.phase == "error":
             if self.mode == "setup":
@@ -586,12 +645,16 @@ class PoseScreen(Screen):
             self._refresh_text()
 
     def restart(self):
+        if self._worker_busy:
+            self._deferred_actions.append((self.restart, ()))
+            return
         if self.flow is not None and self.phase not in ("complete", "setup"):
             self.flow.restart()
             self.phase = self.flow.phase
             self.pose = None
             self._last_pose = -float("inf")
             self._captured_frames = {}
+            self._pose_captures.clear()
             self._handoff_started = False
             self._refresh_text()
 
@@ -602,11 +665,12 @@ class PoseScreen(Screen):
         self.manager.current = "home"
 
     def _stop_worker(self):
-        self._worker_running = False
-        if hasattr(self, "_worker_trigger"):
-            self._worker_trigger.set()
+        self._generation += 1
+        self._deferred_actions = []
+        if self._pose_executor is not None:
+            self._pose_executor.shutdown(wait=False, cancel_futures=True)
+            self._pose_executor = None
         self._worker_busy = False
-        self._worker_thread = None
 
     def _stop_camera(self):
         self._stop_worker()
@@ -621,10 +685,23 @@ class PoseScreen(Screen):
         self._blit_buf = None
 
     def _shutdown(self):
+        self._startup_cancel.set()
+        if self._initialize_event is not None:
+            self._initialize_event.cancel()
+            self._initialize_event = None
+        if self._startup_executor is not None:
+            self._startup_executor.shutdown(wait=False, cancel_futures=True)
+            self._startup_executor = None
         self._stop_camera()
         self._unbind_setup_keys()
         if self.flow is not None:
-            self.flow.close()
+            flow = self.flow
+            if self._pose_future is not None and not self._pose_future.done():
+                # This closure owns the old flow; never reset a tracker mid-estimate.
+                self._pose_future.add_done_callback(lambda _future, old_flow=flow: old_flow.close())
+            else:
+                flow.close()
+        self._pose_future = None
         self.flow = None
         self.tracker = None
         self.pose = None
@@ -682,6 +759,9 @@ class PoseScreen(Screen):
             self._keys_bound = False
 
     def _on_key_down(self, _window, key, _scancode, codepoint, _modifiers):
+        if self._worker_busy:
+            self._deferred_actions.append((self._on_key_down, (_window, key, _scancode, codepoint, _modifiers)))
+            return True
         if self.mode != "setup" or self.flow is None:
             return False
         char = codepoint.lower() if codepoint else (chr(key).lower() if 32 <= key < 127 else "")

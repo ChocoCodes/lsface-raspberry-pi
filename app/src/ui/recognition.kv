@@ -52,6 +52,13 @@
             Widget:
 
         # Video Camera Viewport (Expanded full view)
+        Label:
+            text: root.status_text
+            size_hint_y: None
+            height: dp(28)
+            color: tokens.COLOR_TEXT_SECONDARY
+            font_size: f"{tokens.FONT_SIZE_CAPTION}sp"
+
         VideoViewport:
             size_hint: (1, 1)
 
